@@ -14,7 +14,7 @@ You can find examples in the [examples folder](examples).
 | Name | Documentation | Location | Description |
 | -------- | -------- | -------- | -------- |
 | [AHkInstance.ahk](AHkInstance.ahk) | [docs\AhkInstance.md](docs/AhkInstance.md) | This library | **Header**. |
-| [ExecScript.ahk](..\ExecScript\ExecScript.ahk) | [ExecScript\README.md](..\ExecScript/README.md) | Extern | Used to start a new process with the **AutoHotkey interpreter**. |
+| [ExecScript.ahk](..\ExecScript\ExecScript.ahk) | [ExecScript\README.md](../ExecScript/README.md) | Extern | Used to start a new process with the **AutoHotkey interpreter**. |
 | [Subprocess.ahk](../../process/Subprocess/Subprocess.ahk) | [Subprocess\README.md](../../process/Subprocess/README.md) | Extern | Used by **ExecScript** to create a new process. |
 
 
