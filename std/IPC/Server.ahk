@@ -53,6 +53,11 @@ class AHkInstance_Client
         AHkInstance_Client.Handle := Handle
     }
 
+    __Delete()
+    {
+        this.Close()
+    }
+
     Close()
     {
         global AHkInstance_Client

@@ -14,7 +14,7 @@ You can find examples in the [examples folder](examples).
 | Name | Documentation | Location | Description |
 | -------- | -------- | -------- | -------- |
 | [AHkInstance.ahk](AHkInstance.ahk) | [docs\AhkInstance.md](docs/AhkInstance.md) | This library | **Header**. |
-| [ExecScript.ahk](..\ExecScript\ExecScript.ahk) | [ExecScript\README.md](..\ExecScript/README.md) | Extern | Used to start a new process with the **AutoHotkey interpreter**. |
+| [ExecScript.ahk](..\ExecScript\ExecScript.ahk) | [ExecScript\README.md](../ExecScript/README.md) | Extern | Used to start a new process with the **AutoHotkey interpreter**. |
 | [Subprocess.ahk](../../process/Subprocess/Subprocess.ahk) | [Subprocess\README.md](../../process/Subprocess/README.md) | Extern | Used by **ExecScript** to create a new process. |
 
 
@@ -24,8 +24,8 @@ You can find examples in the [examples folder](examples).
 
 | Name | Documentation | Header | Description |
 | -------- | -------- | -------- | -------- |
-| [Client.ahk](Client.ahk) | - | [AHkInstance.ahk](AHkInstance.ahk) | Client related stuff (main script). |
-| [Server.ahk](Server.ahk) | - | [AHkInstance.ahk](AHkInstance.ahk) | Server related stuff (subprocesses) |
+| [Client.ahk](Client.ahk) | [docs\Client.md](docs/Client.md) | [AHkInstance.ahk](AHkInstance.ahk) | Client related stuff (main script). |
+| [Server.ahk](Server.ahk) | [docs\Server.md](docs/Server.md) | [AHkInstance.ahk](AHkInstance.ahk) | Server related stuff (subprocesses) |
 
 
 
