@@ -1,4 +1,4 @@
-# Subprocess::Pipe::StreamWriter::Write method
+# Subprocess::Pipe::StreamWriter Write method
 
 Write a string of characters to the pipe.
 

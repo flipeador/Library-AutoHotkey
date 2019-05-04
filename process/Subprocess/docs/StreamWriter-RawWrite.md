@@ -1,4 +1,4 @@
-# Subprocess::Pipe::StreamWriter::RawWrite method
+# Subprocess::Pipe::StreamWriter RawWrite method
 
 Write raw binary data to the pipe.
 

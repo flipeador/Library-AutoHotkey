@@ -1,4 +1,4 @@
-# Subprocess::Pipe::StreamReader::ReadAll method
+# Subprocess::Pipe::StreamReader ReadAll method
 
 Read all the text from the pipe. Do not call this method if StdOut has binary data.
 

@@ -1,4 +1,4 @@
-# Subprocess::Pipe::StreamReader::RawRead method
+# Subprocess::Pipe::StreamReader RawRead method
 
 Read raw binary data from the pipe into memory.
 

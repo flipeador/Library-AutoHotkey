@@ -1,6 +1,6 @@
 # Subprocess::Pipe::StreamWriter
 
-Extends the [Subprocess::Pipe](Pipe.rd) class by adding methods specific to the stream writer.
+Extends the [Subprocess::Pipe](Pipe.md) class by adding methods specific to the stream writer.
 
 
 

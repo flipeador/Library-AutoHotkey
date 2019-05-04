@@ -41,3 +41,9 @@ All scripts are compatible when compiling and do not require any external `.ahk`
 | [Subprocess](process/Subprocess) | Creates a Child Process with Redirected Input and Output. |
 | [IPC](std/IPC) | Interprocess communications (IPC). |
 | [ExecScript](std/ExecScript) | Execute an AHK script as a new process with Redirected Input and Output. |
+
+## Window
+
+| Name | Description |
+| -------- | -------- |
+| [Explorer](window/Explorer) | [Windows Explorer](https://docs.microsoft.com/en-us/windows/desktop/shell/developing-with-windows-explorer) |

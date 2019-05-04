@@ -1,4 +1,4 @@
-# Subprocess::Pipe::StreamReader::Read method
+# Subprocess::Pipe::StreamReader Read method
 
 Read a string of characters from the pipe.
 
