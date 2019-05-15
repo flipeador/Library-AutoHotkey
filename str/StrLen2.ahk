@@ -2,47 +2,44 @@
 
 
 /*
-    Recupera la longitud de una cadea, en caracteres UTF-32.
-    Parámetros:
-        String: La cadena UTF-16LE.
-    Return:
-        Devuelve el número de caracteres enteros en la cadena especificada en String.
-    Ejemplo:
-        MsgBox("StrLen: " . StrLen(Chr(128064)) . "`nStrLen2: " . StrLen2(Chr(128064)))
+    unsigned long long StrLen(unsigned char *p)
+    {
+        unsigned long long n = 0ULL;
+        
+        for(; *p; p++)
+            if ((*p & 0xC0) != 0x80)
+                ++n;
+
+        return n;
+    }
 */
-StrLenU4(String)
+StrLen2(ByRef Text)
 {
-    Static pUTF8Len := 0
-    Local Buffer := "", Size := 0
+    static pStrLen := 0
+    local
 
-    VarSetCapacity(Buffer, Size := StrPut(String, "UTF-8") - 1)
-    StrPut(String, &Buffer, "UTF-8")
+    VarSetCapacity(Buffer, StrPut(Text,"UTF-8"))
+   ,StrPut(Text, &Buffer, "UTF-8")
 
-    If (!pUTF8Len)
-        pUTF8Len := MCode("2,x86:i0wkBA+2EYTSdCSDwQExwIHiwAAAAIPCgA+VwoPBAQ+20gHQD7ZR/4TSdeTCBAAxwMIEAJCQkJCQkJCQkJCQkA==,x64:D7YRhNJ0KUiDwQExwA8fAIHiwAAAAIPCgA+VwkiDwQEPttIB0A+2Uf+E0nXjw2aQMcDDkJCQkJCQkJCQkJCQkA==")
+    if !pStrLen
+        pStrLen := MCode("2,x86:g+wIi0wkDA9XwGYPEwQki1QkBIoBhMB0IlaLdCQEZpAkwDyAdAaDxgGD0gCKQQFBhMB17IvGXoPECMOLBCSDxAjD,x64:D7YRM8CE0nQjDx+AAAAAAIDiwEyNQAGA+oBIjUkBD7YRTA9EwEmLwITSdeTD")
     
-    Return (DllCall(pUTF8Len, "UPtr", &Buffer))
-
-    /* CON AHK (mucho mas lento)
-    Length := 0
-    Loop (Size)
-        If ((NumGet(Buffer, A_Index - 1, "UChar") & 0xC0) != 0x80)
-            ++Length
-
-    Return (Length)
-    */
+    return DllCall(pStrLen, "Ptr", &Buffer, "UInt64")
 }
 
 
 
 
 
-/*
-    Esta es una versión sin DllCall, pero mucho más lenta que la anterior.
-*/
-StrLenUnicode(data)
+StrLenRE(ByRef Text)
 {
-    Local i := 0
-    RegExReplace(data, "s).", "", i)
-    Return i
+    local i := 0
+    RegExReplace(Text, "s).", "", i)
+    return i
 } ; https://autohotkey.com/boards/viewtopic.php?t=22036#p106284
+
+
+
+
+; MsgBox(Format("𠜎`n----------`nStrLen: {1}`nStrLen2: {2}`nStrLenRE: {3}",StrLen("𠜎"),StrLen2("𠜎"),StrLenRE("𠜎")))
+; MsgBox(Format("å`n----------`nStrLen: {1}`nStrLen2: {2}`nStrLenRE: {3}",StrLen("å"),StrLen2("å"),StrLenRE("å")))

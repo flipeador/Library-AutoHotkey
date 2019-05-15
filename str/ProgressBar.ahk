@@ -16,7 +16,7 @@ ProgressBar(Current, Max := 100, Length := 100, Char := "|")
     Local Percent := (Current / Max) * 100, Progress := ""
     Percent := Percent > 100 ? 100 : Percent < 0 ? 0 : percent
     Loop (Round(((Percent / 100) * Length)))
-        Progress .= "|"
+        Progress .= Char
     Loop (Length - Round(((Percent / 100) * Length)))
         Progress .= A_Space
     Return {Progress: Progress, Percent: Round(Percent, 2)}

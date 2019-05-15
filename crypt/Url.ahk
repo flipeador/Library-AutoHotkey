@@ -21,7 +21,7 @@ URLEncode(Url, Encoding := "UTF-8")
             Encoded .= InStr(Unreserved,Chr(Code)) ? Chr(Code) : Format("%{:02X}",Code)
     }
     else
-        throw Exception("Function URLEncode invalid parameter #2.", -1)
+        throw Exception("URLEncode function, invalid parameter #2.", -1)
 
     return Encoded
 } ;http://rosettacode.org/wiki/URL_encoding#AutoHotkey | https://en.wikipedia.org/wiki/Percent-encoding
