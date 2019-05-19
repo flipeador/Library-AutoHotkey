@@ -8,18 +8,26 @@
 */
 URLEncode(Url, Encoding := "UTF-8")
 {
+    local
     static Unreserved := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~"
-    local Encoded := ""
 
-    If ( Encoding = "UTF-16" )
-        loop parse, Url
-            Encoded .= InStr(Unreserved,A_LoopField) ? A_LoopField : Format("%u{:04X}",Ord(A_LoopField))
-    else if ( Encoding = "UTF-8" )
+    Encoded := ""
+
+    if (Encoding = "UTF-16")
     {
-        local Buffer := "", Code := VarSetCapacity(Buffer,StrPut(Url,"UTF-8")) . StrPut(Url,&Buffer,"UTF-8")
-        while ( Code := NumGet(&Buffer+A_Index-1,"UChar") )
+        Loop Parse, Url
+            Encoded .= InStr(Unreserved,A_LoopField) ? A_LoopField : Format("%u{:04X}",Ord(A_LoopField))
+    }
+
+    else if (Encoding = "UTF-8")
+    {
+        Buffer := BufferAlloc(StrPut(Url,"UTF-8"))
+        StrPut(Url, Buffer, "UTF-8")
+
+        while (Code := NumGet(Buffer,A_Index-1,"UChar"))
             Encoded .= InStr(Unreserved,Chr(Code)) ? Chr(Code) : Format("%{:02X}",Code)
     }
+
     else
         throw Exception("URLEncode function, invalid parameter #2.", -1)
 
@@ -38,20 +46,25 @@ URLEncode(Url, Encoding := "UTF-8")
 */
 URLDecode(Url)
 {
-    local dec := "", T := 0
+    local
 
-    if ( InStr(Url,"%u") )  ; UTF-16
+    dec := ""
+    T   := 0
+
+    if (InStr(Url,"%u"))  ; UTF-16.
     {
         loop parse, Url
             dec .= A_LoopField == "%" ? Chr("0x" . SubStr(Url,A_Index+2,(T:=5)-1)) : ( --T > -1 ? "" : A_LoopField )
         return dec
     }
 
-    loop parse, Url
+    Loop Parse, Url
         dec .= A_LoopField == "%" ? Chr("0x" . SubStr(Url,A_Index+1,T:=2)) : ( --T > -1 ? "" : A_LoopField )
-    local utf8 := "", _ := VarSetCapacity(utf8,StrPut(dec,"UTF-8"))
-    loop Parse, dec
-        NumPut(Ord(A_LoopField), &utf8 + A_Index - 1, "UChar")
 
-    return StrGet(&utf8, "UTF-8")
+    Buffer := BufferAlloc(StrPut(dec,"UTF-8"))
+    Loop Parse, dec
+        NumPut("UChar", Ord(A_LoopField), Buffer, A_Index-1)
+    NumPut("UChar", 0x00, Buffer, Buffer.Size-1)
+
+    return StrGet(Buffer, "UTF-8")
 } ;https://autohotkey.com/boards/viewtopic.php?t=4868
