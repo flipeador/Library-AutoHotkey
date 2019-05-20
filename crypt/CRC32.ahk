@@ -1,12 +1,12 @@
-﻿CRC32(Binary, Length)
+﻿CRC32(Binary, Length := 0)
 {
     local
 
     if (Type(Binary) == "String")
     {
-        Buffer := BufferAlloc(StrPut(Binary,Length))
-       ,Length := StrPut(Binary, Buffer, StrLen(Binary), Length)
-       ,Binary := Buffer.Ptr
+        Buffer := BufferAlloc(StrPut(Binary,"UTF-8"))
+        Length := StrPut(Binary, Buffer, "UTF-8") - 1
+        Binary := Buffer.Ptr
     }
 
     return DllCall("Ntdll.dll\RtlComputeCrc32", "UInt", 0       ; DWORD dwInitial.
