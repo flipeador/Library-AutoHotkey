@@ -1,26 +1,41 @@
 ﻿/*
-    Compara dos versiones para determina si es mayor, menor o igual a otra.
-    Return:
-        0 = version1 = version2.
-        1 = version1 > version2.
-        2 = version1 < version2.
+    Compares two versions and determines which is greater or lesser, or if they are the same.
+    Parameters:
+        Version1:
+            The first version.
+        Version2:
+            The second version.
+    Return value:
+       -1     Version1 < Version2.
+        0     Version1 = Version2.
+        1     Version1 > Version2.
 */
-VersionCompare(version1, version2)
+VersionCompare(Version1, Version2)
 {
-    Local vA := StrSplit(version1:=Trim(version1), '.')
-        , vB := StrSplit(version2:=Trim(version2), '.')
+    Version1 := StrSplit(RegExReplace(Version1,"[^\w\.]-?.*"), ".")
+    Version2 := StrSplit(RegExReplace(Version2,"[^\w\.]-?.*"), ".")
     
-    Loop (vA.MaxIndex() > vB.MaxIndex() ? vA.MaxIndex() : vB.MaxIndex())
+    loop (Version1.MaxIndex() > Version2.MaxIndex() ? Version1.MaxIndex() : Version2.MaxIndex())
     {
-        If (vA.MaxIndex() < A_Index)
-            vA[A_Index] := 0
-        If (vB.MaxIndex() < A_Index)
-            vB[A_Index] := 0
-        If (vA[A_Index] > vB[A_Index])
-            Return (1)
-        If (vB[A_Index] > vA[A_Index])
-            Return (2)
+        if (Version1.MaxIndex() < A_Index)
+            Version1[A_Index] := 0
+        if (Version2.MaxIndex() < A_Index)
+            Version2[A_Index] := 0
+        if (Version1[A_Index] > Version2[A_Index])
+            return 1
+        if (Version2[A_Index] > Version1[A_Index])
+            return -1
     }
 
-    Return (0)
+    return 0
 }
+
+
+
+
+
+/*
+MsgBox(VersionCompare("1.0.1","1.0.2"))  ; -1
+MsgBox(VersionCompare("1.0.2","1.0.2"))  ; 0
+MsgBox(VersionCompare("1.0.3","1.0.2"))  ; 2
+*/

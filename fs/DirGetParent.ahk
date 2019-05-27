@@ -14,14 +14,14 @@ DirGetParent(Path, ParentCount := 1)
 {
     local
 
-    if Type(ParentCount) !== "Integer" || ParentCount < 0
+    if (Type(ParentCount) !== "Integer" || ParentCount < 0)
         throw Exception("DirGetParent function: invalid parameter #2.", -1)
 
     Path := Trim(Path, "\`s`t")
 
-    while ParentCount--
+    while (ParentCount--)
     {
-        if pos := InStr(Path, "\",, -1)
+        if (pos := InStr(Path, "\",, -1))
         {
             Path := SubStr(Path, 1, pos-1)
         }

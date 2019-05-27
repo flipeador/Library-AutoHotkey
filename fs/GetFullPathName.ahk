@@ -14,19 +14,25 @@ GetFullPathName(Path, WorkingDir := "")
 {
     local
 
-    RestoreWD := ""
-    if DirExist(WorkingDir)
+    RestoreWD := 0
+    if (DirExist(WorkingDir))
     {
         RestoreWD    := A_WorkingDir
         A_WorkingDir := WorkingDir
     }
 
-    Length := DllCall("Kernel32.dll\GetFullPathNameW", "Ptr", &Path, "UInt", 0, "Ptr", 0, "Ptr", 0, "UInt")
-    VarSetCapacity(Buffer, 2*Length)
-    Length := DllCall("Kernel32.dll\GetFullPathNameW", "Ptr", &Path, "UInt", Length, "Str", Buffer, "Ptr", 0, "UInt")
+    Length := DllCall("Kernel32.dll\GetFullPathNameW","Ptr", &Path, "UInt", 0, "Ptr", 0, "Ptr", 0, "UInt")
+    Buffer := BufferAlloc(2*Length)
+    Length := DllCall("Kernel32.dll\GetFullPathNameW", "Ptr", &Path, "UInt", Length, "Ptr", Buffer, "Ptr", 0, "UInt")
 
-    if DirExist(RestoreWD)
+    if (RestoreWD)
         A_WorkingDir := RestoreWD
 
-    Return Length ? Buffer : 0
+    Return StrGet(Buffer, Length, "UTF-16")
 } ; https://docs.microsoft.com/es-es/windows/desktop/api/fileapi/nf-fileapi-getfullpathnamew
+
+
+
+
+
+;MsgBox(GetFullPathName("a.txt",A_Desktop))

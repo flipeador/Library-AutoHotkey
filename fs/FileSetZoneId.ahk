@@ -1,5 +1,5 @@
 ﻿/*
-    Sets the current security zone identifier for the specified file.
+    Sets or removes the current security zone identifier for the specified file.
     Parameters:
         FileName:
             The absolute path of the file to be opened.
@@ -39,7 +39,7 @@ FileSetZoneId(FileName, ZoneId)
     ; https://docs.microsoft.com/en-us/windows/desktop/api/objidl/nn-objidl-ipersistfile.
     ;                                             | -------- IID_IPersistFile -------- |
     IPersistFile := ComObjQuery(IZoneIdentifier, "{0000010B-0000-0000-C000-000000000046}")
-    if !IPersistFile
+    if (!IPersistFile)
         return FALSE
 
     if (ZoneId is "Number")

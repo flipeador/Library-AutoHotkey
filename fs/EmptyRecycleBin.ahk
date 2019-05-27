@@ -1,19 +1,29 @@
 ﻿/*
-    Vacía la Papelera de reciclaje en la unidad especificada.
-    Parámetros:
-        RootPath: La ruta de la unidad raíz en la que se encuentra la papelera de reciclaje. Si este parámetro es una cadena vacía o 0 afecta a todas las unidades.
-        hWnd: El identificador de la ventana propietaria. Este parámetro puede ser 0.
-        Confirmation: Determina si se debe mostrar un diálogo para pedir la confirmación de la operación del usuario.
-        Progress: Determina si se debe mostrar el progreso de la operación.
-        Sound: Determina si se debe reproducir un sonido al terminar la operacións.
+    Empties the Recycle Bin on the specified drive.
+    Parameters:
+        RootPath:
+            The string that contains the path of the root drive on which the Recycle Bin is located.
+            This parameter can contain a string formatted with the drive, folder, and subfolder names.
+            If this value is an empty string or zero, all Recycle Bins on all drives will be emptied.
+        Owner:
+            A handle to the parent window of any dialog boxes that might be displayed during the operation.
+            If this parameter can be NULL.
+        Flags:
+            0x00000001   No dialog box confirming the deletion of the objects will be displayed.
+            0x00000002   No dialog box indicating the progress will be displayed.
+            0x00000004   No sound will be played when the operation is complete.
     Return:
-        Si tuvo éxito devuelve 1, caso contrario devuelve 0.
+        If this function succeeds, the return valur is TRUE.
+        If the function fails, the return value is FALSE. To get extended error information, check A_LastError.
 */
-EmptyRecycleBin(RootPath := 0, hWnd := 0, Confirmation := FALSE, Progress := FALSE, Sound := FALSE)
+EmptyRecycleBin(RootPath := 0, Owner := 0, Flags := 0)
 {
-    Local Flags := !Confirmation | (Progress ? 0 : 2) | (Sound ? 0 : 4)
+    RootPath := StrLen(RootPath) == 1 ? RootPath . ":" : RootPath
 
-    RootPath := RootPath ? SubStr(RootPath, 1, 1) . ':' : 0
+    A_LastError := DllCall("Shell32.dll\SHEmptyRecycleBinW", "UPtr", Owner ? WinExist("ahk_id" . Owner) ? Owner : 0 : Owner
+                                                           , "UPtr", Type(RootPath) == "String" ? &RootPath : RootPath
+                                                           , "UInt", Flags
+                                                           , "UInt")
 
-    Return (!DllCall('Shell32.dll\SHEmptyRecycleBinW', 'Ptr', hWnd, 'UPtr', &RootPath, 'UInt', Flags, 'UInt'))
-} ;https://msdn.microsoft.com/en-us/library/windows/desktop/bb762160(v=vs.85).aspx
+    return A_LastError == 0
+} ; https://docs.microsoft.com/en-us/windows/desktop/api/shellapi/nf-shellapi-shemptyrecyclebina
