@@ -9,7 +9,7 @@
 */
 DirGetSize(DirName)
 {
-    global A_FileSystemObject
+    global A_FileSystemObject  ; Use global a variable so we avoid creating several objects in other functions.
     local
 
     if (!IsObject(A_FileSystemObject))

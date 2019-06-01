@@ -47,7 +47,7 @@
 */
 DownloadFile(Url, FileName, Overwrite := TRUE, MaxSize := 0, BlockSize := 1000000, CallBack := 0)
 {
-    Local hModule, hInternet, hUrl, Percentage, WinHttpReq, NumberOfBytesAvailable, Buffer, NumberOfBytesRead, BytesRead
+    local
 
     ; Si FileName es un directorio devolvemos -1. O si FileName ya existe y Overwrite=0 devolvemos -1.
     If (DirExist(FileName) || (!Overwrite && FileExist(FileName)))

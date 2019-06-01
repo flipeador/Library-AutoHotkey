@@ -14,7 +14,7 @@
             0x2  VOLUME_NAME_NT           Return the path with the volume device path.
             0x4  VOLUME_NAME_NONE         Return the path with no drive information.
             -----------------------------
-            The default value is -1 (or <0), returns the path without any prefix.
+            The default value is -1 (or <0), returns the path without the '\\?\' prefix.
     Return value:
         If the function succeeds, the return value is a string with the file path.
         If the function fails, the return value is zero. To get extended error information, check A_LastError.

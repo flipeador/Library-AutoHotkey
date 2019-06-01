@@ -13,13 +13,13 @@
         Antes de enviar un email, debe activar el acceso a aplicaciones menos seguras en el email del remitente.
         Less Secure Apps: https://www.google.com/settings/security/lesssecureapps
 */
-SendEmail(Password, From, To, Subject := '', Body := '', Attachments := 0)
+SendEmail(Password, From, To, Subject := "", Body := "", Attachments := 0)
 {
-    Local CdoMsg, Each, Attachment, CdoConf
+    local
 
     Try
     {
-        CdoMsg          := ComObjCreate('CDO.Message')
+        CdoMsg          := ComObjCreate("CDO.Message")
         CdoMsg.From     := From
         CdoMsg.To       := To
         CdoMsg.Subject  := Subject
@@ -29,14 +29,14 @@ SendEmail(Password, From, To, Subject := '', Body := '', Attachments := 0)
             CdoMsg.AddAttachment(Attachment)
 
         CdoConf         := CdoMsg.Configuration.Fields
-        CdoConf.Item('http://schemas.microsoft.com/cdo/configuration/smtpserver')            := 'smtp.gmail.com'
-        CdoConf.Item('http://schemas.microsoft.com/cdo/configuration/smtpserverport')        := 465
-        CdoConf.Item('http://schemas.microsoft.com/cdo/configuration/smtpusessl')            := TRUE
-        CdoConf.Item('http://schemas.microsoft.com/cdo/configuration/sendusing')             := 2
-        CdoConf.Item('http://schemas.microsoft.com/cdo/configuration/smtpauthenticate')      := 1
-        CdoConf.Item('http://schemas.microsoft.com/cdo/configuration/sendusername')          := From
-        CdoConf.Item('http://schemas.microsoft.com/cdo/configuration/sendpassword')          := Password
-        CdoConf.Item('http://schemas.microsoft.com/cdo/configuration/smtpconnectiontimeout') := 60
+        CdoConf.Item("http://schemas.microsoft.com/cdo/configuration/smtpserver")            := "smtp.gmail.com"
+        CdoConf.Item("http://schemas.microsoft.com/cdo/configuration/smtpserverport")        := 465
+        CdoConf.Item("http://schemas.microsoft.com/cdo/configuration/smtpusessl")            := TRUE
+        CdoConf.Item("http://schemas.microsoft.com/cdo/configuration/sendusing")             := 2
+        CdoConf.Item("http://schemas.microsoft.com/cdo/configuration/smtpauthenticate")      := 1
+        CdoConf.Item("http://schemas.microsoft.com/cdo/configuration/sendusername")          := From
+        CdoConf.Item("http://schemas.microsoft.com/cdo/configuration/sendpassword")          := Password
+        CdoConf.Item("http://schemas.microsoft.com/cdo/configuration/smtpconnectiontimeout") := 60
 
         CdoConf.Update()
 

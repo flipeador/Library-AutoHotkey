@@ -1,27 +1,39 @@
 ﻿/*
-    Enumera los flujos de datos alternativos  (alternate data streams) en el archivo especificado.
-    Parámetros:
-        File:
-            El nombre del archivo a analizar.
-    Nota:
-        Los nombres de Streams tienen el formato ":stream_name:$DATA". Al recuperarlos se eliminan los ":" y "$DATA".
-        Para acceder a un stream se utiliza el formato "C:\File.ext:Stream_Name". Se pueden eliminar con FileDelete.
-    Referencias:
-        https://autohotkey.com/boards/viewtopic.php?f=5&t=50460&start=20#p225780
+    Enumerates the streams with a ::$DATA stream type in the specified file or directory.
+    Parameters:
+        FileName:
+            The fully qualified file name.
+    Return value:
+        If this function succeeds, the return value is an array of objects with the keys: 'Size' and 'Name'.
+        If the function fails, the return value is zero.
+    Related:
+        https://www.autohotkey.com/boards/viewtopic.php?f=5&t=50460&start=20#p225780
 */
-FileEnumStreams(File)
+FileEnumStreams(FileName)
 {
-    Local                Streams := []
-        , WIN32_FIND_STREAM_DATA := ""
+    local
 
-    VarSetCapacity(WIN32_FIND_STREAM_DATA, 8 + (260 + 36) * 2)
-    Local Handle := DllCall("Kernel32.dll\FindFirstStreamW", "UPtr", &File, "UInt", 0, "UPtr", &WIN32_FIND_STREAM_DATA, "UInt", 0, "Ptr")
-    If (!Handle)
-        Return FALSE
-    ObjPush(Streams, {Size: NumGet(&WIN32_FIND_STREAM_DATA, "Int64"), Name: SubStr(StrGet(&WIN32_FIND_STREAM_DATA + 8, "UTF-16"), 2, -6)})
+    Streams                := [ ]
+    WIN32_FIND_STREAM_DATA := BufferAlloc(600)  ; 8+2*(260+36) = LARGE_INTEGER+WCHAR[MAX_PATH+36].
+    A_LastError            := 0
 
-    While (DllCall("Kernel32.dll\FindNextStreamW", "Ptr", Handle, "UPtr", &WIN32_FIND_STREAM_DATA, "Ptr"))
-        ObjPush(Streams, {Size: NumGet(&WIN32_FIND_STREAM_DATA, "Int64"), Name: SubStr(StrGet(&WIN32_FIND_STREAM_DATA + 8, "UTF-16"), 2, -6)})
+    if Handle := DllCall("Kernel32.dll\FindFirstStreamW", "Ptr", &FileName, "UInt", 0, "Ptr", WIN32_FIND_STREAM_DATA, "UInt", 0, "Ptr")
+    {
+        loop
+            Streams.Push( { Size: NumGet(WIN32_FIND_STREAM_DATA, "Int64")
+                          , Name: StrGet(WIN32_FIND_STREAM_DATA.Ptr+8, 260+36, "UTF-16")
+                          } )
+        until !DllCall("Kernel32.dll\FindNextStreamW", "Ptr", Handle, "Ptr", WIN32_FIND_STREAM_DATA, "Ptr")
+    }
 
-    Return Streams
-} ; https://msdn.microsoft.com/en-us/library/windows/desktop/aa365741(v=vs.85).aspx
+    return A_LastError == 0x00000026 ? Streams : 0  ; ERROR_HANDLE_EOF (38).
+} ; https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/ns-fileapi-_win32_find_stream_data
+
+
+
+
+
+/*
+for i, Stream in FileEnumStreams(FileSelect())
+    MsgBox(Format("Stream`s#{3}:`n{2}`s({1}`sBytes).",Stream.Size,Stream.Name,A_Index))
+*/

@@ -1,5 +1,5 @@
 ﻿/*
-    Retrieve parent directory for a file or folder.
+    Retrieves the parent directory for the specified path.
     Parameters:
         Path:
             Path to a directory or File. The function does not check for the path existence.
@@ -8,7 +8,7 @@
     Return value:
         Returns the parent directory.
     Remarks:
-        If there is no parent directory, the drive letter will be returned.
+        If there is no parent directory, the drive letter plus ':' will be returned.
 */
 DirGetParent(Path, ParentCount := 1)
 {
@@ -19,13 +19,8 @@ DirGetParent(Path, ParentCount := 1)
 
     Path := Trim(Path, "\`s`t")
 
-    while (ParentCount--)
-    {
-        if (pos := InStr(Path, "\",, -1))
-        {
-            Path := SubStr(Path, 1, pos-1)
-        }
-    }
+    while (ParentCount-- && (pos:=InStr(Path,"\",,-1)))
+        Path := SubStr(Path, 1, pos-1)
 
     return StrLen(Path) == 1 ? Path . ":" : Path
 }

@@ -13,7 +13,7 @@
             0x00000002   No dialog box indicating the progress will be displayed.
             0x00000004   No sound will be played when the operation is complete.
     Return:
-        If this function succeeds, the return valur is TRUE.
+        If this function succeeds, the return value is TRUE.
         If the function fails, the return value is FALSE. To get extended error information, check A_LastError.
 */
 EmptyRecycleBin(RootPath := 0, Owner := 0, Flags := 0)

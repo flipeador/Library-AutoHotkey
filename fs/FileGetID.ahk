@@ -37,7 +37,7 @@ FileGetID(Target)
         ; https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-getfileinformationbyhandle.
         if DllCall("Kernel32.dll\GetFileInformationByHandle", "Ptr", hFile, "Ptr", BY_HANDLE_FILE_INFORMATION)
         {
-            Result := Format("{:08X}-{:08X}{:08X}"
+            Result := Format("{:08X}-{:08X}{:08X}"  ; 09ABCDEF-09ABCDEF09ABCDEF.
                            , Numget(BY_HANDLE_FILE_INFORMATION, 28, "UInt")   ; dwVolumeSerialNumber.                              
                            , Numget(BY_HANDLE_FILE_INFORMATION, 44, "UInt")   ; nFileIndexHigh.
                            , Numget(BY_HANDLE_FILE_INFORMATION, 48, "UInt"))  ; nFileIndexLow.
