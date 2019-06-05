@@ -15,16 +15,32 @@ ClipboardWindow()
 
 /*
     Opens the clipboard for examination and prevents other applications from modifying the clipboard content.
+    Parameters:
+        Owner:
+            A handle to the window to be associated with the open clipboard.
+            If this parameter is zero, the open clipboard is associated with the current task.
+            If this parameter is an empty string, the open clipboard is associated with A_ScriptHwnd.
+        Timeout:
+            Specifies how long the script keeps trying to access the clipboard when the first attempt fails.
+            This value must be an integer specifying the time out, in milliseconds.
+        Delay:
+            Time to wait between each attempt to open the clipboard, in milliseconds.
     Return value:
         If the function succeeds, the return value is nonzero.
         If the function fails, the return value is zero. To get extended error information, check A_LastError.
+    Remarks:
+        ClipboardOpen fails if another window has the clipboard open.
+        An application should call the ClipboardClose function after every successful call to ClipboardOpen.
+        The window identified by «Owner» does not become the clipboard owner unless the ClipboardEmpty function is called.
+        If an application calls ClipboardOpen with «Owner» set to zero, ClipboardEmpty sets the clipboard owner to zero; this causes ClipboardSetData to fail.
 */
-ClipboardOpen()
+ClipboardOpen(Owner := "", Timeout := 1500, Delay := 50)
 {
-    local R, S := A_TickCount
-    while !(R:=DllCall("User32.dll\OpenClipboard", "Ptr", A_ScriptHwnd)) && (A_TickCount-S < 2048)
-        Sleep(50)
-    return R
+    local R, I := Timeout//Delay
+    local hWnd := (Owner == "" || (Owner && !WinExist("ahk_id" . Owner))) ? A_ScriptHwnd : Owner
+    while !(R:=DllCall("User32.dll\OpenClipboard", "Ptr", hWnd)) && (A_Index <= I)
+        Sleep(Delay)
+    return R ? (hWnd ? hWnd : -1) : 0
 } ; https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-openclipboard
 
 
@@ -36,6 +52,9 @@ ClipboardOpen()
     Return value:
         If the function succeeds, the return value is nonzero.
         If the function fails, the return value is zero. To get extended error information, check A_LastError.
+    Remarks:
+        When the window has finished examining or changing the clipboard, close the clipboard by calling CloseClipboard. This enables other windows to access the clipboard.
+        Do not place an object on the clipboard after calling CloseClipboard.
 */
 ClipboardClose()
 {
@@ -79,7 +98,7 @@ ClipboardRegisterFormat(FormatName)
 
 ClipboardFormat(Format)
 {
-    return Type(Format) == "Integer" ? Format : ClipboardRegisterFormat(Format)
+    return Type(Format) == "Integer" ? Format : ClipboardRegisterFormat(String(Format))
 }
 
 
@@ -120,9 +139,9 @@ ClipboardFormatAvailable(Format)
 */
 ClipboardGetFormat(Format)
 {
-    local
-    Length := DllCall("User32.dll\GetClipboardFormatNameW", "UInt", Format, "Ptr", Buffer:=BufferAlloc(1002), "Int", 1000)
-    return StrGet(Buffer, Length, "UTF-16")
+    local Length, Buffer := BufferAlloc(1002)
+    Length := DllCall("User32.dll\GetClipboardFormatNameW", "UInt", Format, "Ptr", Buffer, "Int", Buffer.Size-2)
+    return Length ? StrGet(Buffer,Length,"UTF-16") : 0
 } ; https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getclipboardformatnamew
 
 
@@ -137,7 +156,7 @@ ClipboardGetFormat(Format)
     Return value:
         Returns TRUE if the specified format is displayable; Otherwise, it returns FALSE.
 */
-IsDisplayableFormat(Format)
+ClipboardDisplayableFormat(Format)
 {
     ;    || CF_OWNERDISPLAY ||      CF_TEXT     ||  CF_ENHMETAFILE  ||    CF_BITMAP    ||
     return Format == 0x0080 || Format == 0x0081 || Format == 0x000E || Format == 0X0002
@@ -171,15 +190,15 @@ ClipboardGetData(Format)
         Format:
             See the ClipboardFormatAvailable function.
         hMem:
-            A handle to the data in the specified format.
+            A handle to the data in the specified format. It can be an object with the key 'Ptr'.
+            If this parameter identifies a memory object, the object must have been allocated using the GlobalAlloc function with the GMEM_MOVEABLE flag.
     Return value:
         If the function succeeds, the return value is the handle to the data.
         If the function fails, the return value is zero. To get extended error information, check A_LastError.
     Remarks:
-        If SetClipboardData succeeds, the system owns the object identified by the hMem parameter.
-        The app may not write to or free the data once ownership has been transferred to the system, but it can lock and read from the data until the CloseClipboard function is called.
+        If ClipboardSetData succeeds, the system owns the object identified by the «hMem» parameter.
+        The app may not write to or free the data once ownership has been transferred to the system, but it can lock and read from the data until the ClipboardClose function is called.
         The memory must be unlocked before the Clipboard is closed.
-        If the hMem parameter identifies a memory object, the object must have been allocated using the function with the GMEM_MOVEABLE flag.
 */
 ClipboardSetData(Format, hMem)
 {
@@ -244,7 +263,7 @@ ClipboardSetFiles(Files, DropEffect := 1)
     pMem := NumPut("Int", TRUE, pMem, 16)  ; DROPFILES.fWide (Unicode).
 
     for i, File in Files
-        pMem += StrPut(File, pMem, StrLen(File)+1, "UTF-16")
+        pMem += StrPut(File, pMem, StrPut(File,"UTF-16")//2, "UTF-16")
 
     DllCall("Kernel32.dll\GlobalUnlock", "Ptr", hMem, "Ptr")
 
@@ -363,10 +382,8 @@ ClipboardGetSelText(Options := 0, Timeout := 2)
     local
 
     ClipSaved := ClipboardAll()
-    Clipboard := ""
-
-    SendInput("^c")
-    Content := (R:=ClipWait(Timeout)) ? Clipboard : ""
+    Clipboard := "", Send("^c")
+    Content   := (R:=ClipWait(Timeout,1)) ? Clipboard : ""
 
     if (!R || Options == 0)
         Clipboard := ClipSaved
@@ -398,14 +415,13 @@ ClipboardSendText(Text, RestoreDelay := 500)
         ClipSaved := ClipboardAll()
 
     Clipboard := Text
-    SendInput("^v")
+    Send("^v")
 
     if (RestoreDelay > 0)
         SetTimer("RestoreClipboard", -RestoreDelay)
 
     RestoreClipboard()
     {
-        ToolTip("restored!")
         Clipboard := ClipSaved
         ClipSaved := 0
     }
