@@ -1,30 +1,30 @@
 ﻿/*
-    Muestra un diálogo para pedirle al usuario que seleccione un icono.
-    Parámetros:
-        Owner   : El identificador de la ventana propietaria de este diálogo. Este valor puede ser cero.
-        FileName: La ruta a un archivo que contenga iconos.
-        Icon    : El índice del icono en el archivo. El valor por defecto es 1.
-    Return:
-        Si tuvo éxito devuelve un objeto con las claves FileName|Icon, caso contrario devuelve 0.
-    Ejemplo:
-        If (Result := ChooseIcon())
-            MsgBox('FileName: ' . Result.FileName . ',' . Result.Icon)
+    Displays a dialog box that allows the user to choose an icon from the selection available embedded in a resource such as an executable or DLL file.
+    Parameters:
+        Owner:
+            The handle of the owner window. This value can be zero.
+        FileName:
+            A string with the path of the default resource that contains the icons.
+        IconIndex:
+            Specifies the index of the initial selection. The default value is 1.
+    Return value:
+        If the function succeeds, the return value is an object with the keys 'FileName' and 'Icon'.
+        If the function fails, the return value is zero.
 */
-ChooseIcon(Owner := 0, FileName := '', Icon := 1)
+ChooseIcon(Owner := 0, FileName := "", IconIndex := 1)
 {
-    Local Buffer
-    VarSetCapacity(Buffer, 4000)
-    StrPut(FileName, &Buffer, 'UTF-16')
+    local Buffer := BufferAlloc(2*32767+2)
+    StrPut(FileName, Buffer, "UTF-16")
 
-    Local OutputVar := 0
-    If (DllCall('Shell32.dll\PickIconDlg', 'Ptr', Owner, 'UPtr', &Buffer, 'UInt', 2000, 'IntP', --Icon))
-    {
-        OutputVar := { FileName: StrGet(&Buffer, 'UTF-16')
-                     , Icon    : Icon + 1                }
+    if !DllCall("Shell32.dll\PickIconDlg", "Ptr", Owner, "Ptr", Buffer, "UInt", Buffer.Size//2, "IntP", --IconIndex)
+        return 0
 
-        If (SubStr(OutputVar.FileName, 2, 1) != ':')
-            OutputVar.FileName := StrReplace(OutputVar.FileName, '%SystemRoot%', A_WinDir,, 1)
-    }
+    return { FileName: RegExReplace(StrGet(Buffer,"UTF-16"), "^%SystemRoot%", A_WinDir)
+           , Icon    : IconIndex+1 }
+} ; https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-pickicondlg
 
-    Return (OutputVar)
-}
+
+
+
+
+;MsgBox(ChooseIcon(, A_ComSpec).FileName)

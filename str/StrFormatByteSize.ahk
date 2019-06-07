@@ -11,16 +11,11 @@
 */
 StrFormatByteSize(Number, Flags := 1)
 {
-    local
+    local Buffer := BufferAlloc(2*30)
+    DllCall("Shlwapi.dll\StrFormatByteSizeEx", "Int64", Number, "Int", Flags, "Ptr", Buffer, "UInt", 30)
 
-    VarSetCapacity(Buffer, 30 * 2, 0)
-
-    ; StrFormatByteSizeEx function.
-    ; https://docs.microsoft.com/en-us/windows/desktop/api/shlwapi/nf-shlwapi-strformatbytesizeex.
-    DllCall("Shlwapi.dll\StrFormatByteSizeEx", "Int64", Number, "Int", Flags, "Str", Buffer, "UInt", 30)
-    
-    return Buffer
-}
+    return StrGet(Buffer, "UTF-16")
+} ; https://docs.microsoft.com/en-us/windows/desktop/api/shlwapi/nf-shlwapi-strformatbytesizeex
 
 
 ; MsgBox(StrFormatByteSize(1024 ** 2 * 67.7))  ; 67.7 MB
