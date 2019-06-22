@@ -9,19 +9,19 @@
 */
 DirGetSize(DirName)
 {
-    global A_FileSystemObject  ; Use global a variable so we avoid creating several objects in other functions.
+    global G_FileSystemObject
     local
 
-    if (!IsObject(A_FileSystemObject))
+    if (!IsObject(G_FileSystemObject))
     {
         ; FileSystemObject object.
         ; https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/filesystemobject-object
-        A_FileSystemObject := ComObjCreate("Scripting.FileSystemObject")
+        G_FileSystemObject := ComObjCreate("Scripting.FileSystemObject")
     }
 
     ; FileSystemObject::GetFolder method.
     ; https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/getfolder-method.
-    try Folder := A_FileSystemObject.GetFolder(DirName) 
+    try Folder := G_FileSystemObject.GetFolder(DirName) 
 
     ; Folder object.
     ; https://docs.microsoft.com/en-us/office/vba/language/reference/user-interface-help/folder-object.

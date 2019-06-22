@@ -2,7 +2,7 @@
     Gets the File ID for a valid File/Folder path by uniting the VolumeSerialNumber and FileIndex members of the BY_HANDLE_FILE_INFORMATION structure in a string.
     Parameters:
         Target:
-            The name of a existing file or directory, or a file handle with read access.
+            The name of a existing file or directory, or a File handle/object with read access.
     Return value:
         If the function succeeds, the return value is a string.
         If the function fails, the return value is zero. To get extended error information, check A_LastError.
@@ -11,12 +11,13 @@ FileGetID(Target)
 {
     local
 
-    if (Type(Target) == "Integer")
-      hFile := Target
-    else
-      ; CreateFileW function.
-      ; https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-createfilew.
-      hFile := DllCall("Kernel32.dll\CreateFileW", "UPtr", &Target                           ; lpFileName.
+    Result      := 0
+    CloseHandle := Type(Target) == "String"
+
+    if (CloseHandle)
+        ; CreateFileW function.
+        ; https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-createfilew.
+        hFile := DllCall("Kernel32.dll\CreateFileW", "UPtr", &Target                           ; lpFileName.
                                                  , "UInt", 0x80000000                        ; dwDesiredAccess: GENERIC_READ.
                                                  , "UInt", 1                                 ; dwShareMode: FILE_SHARE_READ.
                                                  , "UPtr", 0                                 ; lpSecurityAttributes.
@@ -24,8 +25,8 @@ FileGetID(Target)
                                                  , "UInt", DirExist(Target) ? 0x2000000 : 0  ; dwFlagsAndAttributes: FILE_FLAG_BACKUP_SEMANTICS(0x2000000).
                                                  , "UPtr", 0                                 ; hTemplateFile.
                                                  , "UPtr")
-
-    Result := 0
+    else
+        hFile := IsObject(Target) ? Target.Handle : Target
     
     if (hFile)
     {
@@ -43,7 +44,8 @@ FileGetID(Target)
                            , Numget(BY_HANDLE_FILE_INFORMATION, 48, "UInt"))  ; nFileIndexLow.
         }
 
-        DllCall("Kernel32.dll\CloseHandle", "Ptr", hFile)
+        if (CloseHandle)
+            DllCall("Kernel32.dll\CloseHandle", "Ptr", hFile)
     }
 
     return Result

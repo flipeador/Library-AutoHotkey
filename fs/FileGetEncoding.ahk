@@ -32,6 +32,7 @@ FileGetEncoding(FileName)
         File := FileName
         if (Type(File) !== "File")
             throw Exception("FileGetEncoding function, invalid parameter #1.", -1)
+        Pos := File.Pos  ; Saves the current position of the file pointer.
     }
 
     Size := File.Length  ; File size, in bytes.
@@ -48,6 +49,8 @@ FileGetEncoding(FileName)
 
     if (Type(FileName) == "String")
         File.Close()  ; Closes the file, flushes any data in the cache to disk and releases the share locks.
+    else
+        File.Seek(Pos)  ; Restores the position of the file pointer.
 
     ; UTF-16LE | UTF-16BE.
     if (Size < 3)
