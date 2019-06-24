@@ -49,7 +49,7 @@ ComObjHandler_QueryInterface(Ptr, IID, pObject)
     ; DllCall("Ole32.dll\CLSIDFromString", "Str", "{00000000-0000-0000-C000-000000000046}", "Ptr", IID_IUnknown)
     ; DllCall("Ole32.dll\IsEqualGUID", "Ptr", IID, "Ptr", IID_IUnknown)
     NumPut("UPtr", 0, pObject)
-    return 0x80004002  ; E_NOINTERFACE.
+    return 0x80004002  ; E_NOINTERFACE: No such interface supported.
 } ; https://docs.microsoft.com/en-us/windows/desktop/api/unknwn/nf-unknwn-iunknown-queryinterface%28refiid_void%29
 
 
@@ -69,21 +69,16 @@ ComObjHandler_AddRef(Ptr)
 
 ComObjHandler_Release(Ptr)
 {
-    local
-
-    RefCount := NumGet(Ptr, A_PtrSize, "UInt")
-    if (RefCount > 0)
+    local RefCount := NumGet(Ptr, A_PtrSize, "UInt")
+    NumPut("UInt", --RefCount, Ptr, A_PtrSize)
+    if (RefCount == 0)
     {
-        NumPut("UInt", --RefCount, Ptr, A_PtrSize)
-        if (RefCount == 0)
-        {
-            pVTable := NumGet(Ptr, "UPtr")
-            while pCallback := NumGet(pVTable, (A_Index-1)*A_PtrSize, "UPtr")
-                CallbackFree(pCallback)
-            if DllCall("Kernel32.dll\GlobalFree", "Ptr", pVTable, "Ptr")
-            || DllCall("Kernel32.dll\GlobalFree", "Ptr", Ptr, "Ptr")
-                throw Exception("0x0000000", -1, "ComObjHandler_Release, GlobalFree")
-        }
+        local pCallback, pVTable := NumGet(Ptr, "UPtr")
+        while pCallback := NumGet(pVTable, (A_Index-1)*A_PtrSize, "UPtr")
+            CallbackFree(pCallback)
+        if DllCall("Kernel32.dll\GlobalFree", "UPtr", pVTable, "UPtr")
+        || DllCall("Kernel32.dll\GlobalFree", "UPtr", Ptr, "UPtr")
+            throw Exception("ComObjHandler_Release, GlobalFree", -1)
     }
     return RefCount
 } ; https://docs.microsoft.com/en-us/windows/desktop/api/unknwn/nf-unknwn-iunknown-release

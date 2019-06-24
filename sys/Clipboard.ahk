@@ -239,21 +239,34 @@ ClipboardGetDropEffect()
     Sets files in the clipboard ready to copy or move (cut).
     Parameters:
         Files:
-            An array with the files to set. Can be a string with a single file.
+            An array with existing full paths to files and/or directories.
+            The function does not check for the existence of specified paths. If a path does not exist, the operation may not work.
+            If this parameter is a string, it is used in an operation with LoopParse. Parameter 'LoopMode' specifies the mode.
         DropEffect:
             The preferred method of data transfer. See the ClipboardGetDropEffect function.
     Return value:
         If the function succeeds, the return value is non-zero.
         If the function fails, the return value is zero.
 */
-ClipboardSetFiles(Files, DropEffect := 1)
+ClipboardSetFiles(Files, DropEffect := 1, LoopMode := "FD")
 {
     local
+
+    if Type(Files) == "String"
+    {
+        FileList := [ ]
+        Loop Files, Files, LoopMode
+            FileList.Push(A_LoopFileFullPath)
+        Files := FileList
+    }
+
+    if !Files.Length()
+        return 0
 
     ; DROPFILES structure.
     ; https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/ns-shlobj_core-_dropfiles.
     Size := 20  ; sizeof(DROPFILES).
-    for i, File in Files := IsObject(Files) ? Files : [Files]
+    for i, File in Files
         Size += StrPut(File, "UTF-16")
 
     hMem := DllCall("Kernel32.dll\GlobalAlloc", "UInt", 0x42, "Ptr", Size+2, "Ptr")  ; 2 = '\0'.
@@ -282,10 +295,11 @@ ClipboardSetFiles(Files, DropEffect := 1)
         ClipboardClose()
     }
 
-    DllCall("Kernel32.dll\GlobalFree", "Ptr", hMem)
-    DllCall("Kernel32.dll\GlobalFree", "Ptr", hDropEffect)
+    DllCall("Kernel32.dll\GlobalFree", "Ptr", hMem, "Ptr")
+    DllCall("Kernel32.dll\GlobalFree", "Ptr", hDropEffect, "Ptr")
     return hMem || hDropEffect ? 0 : Size
 } ; https://docs.microsoft.com/en-us/windows/desktop/com/dropeffect-constants
+
 
 
 
