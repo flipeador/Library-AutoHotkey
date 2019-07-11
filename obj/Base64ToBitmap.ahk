@@ -1,5 +1,5 @@
-﻿#Include Base64ToComByteArray.ahk
-#Include ComByteArrayToBitmap.ahk
+﻿#Include COM\Base64ToComByteArray.ahk
+#Include COM\ComByteArrayToBitmap.ahk
 
 
 

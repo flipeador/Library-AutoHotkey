@@ -47,7 +47,7 @@
 ComObjHandler_QueryInterface(Ptr, IID, pObject)
 {
     ; DllCall("Ole32.dll\CLSIDFromString", "Str", "{00000000-0000-0000-C000-000000000046}", "Ptr", IID_IUnknown)
-    ; DllCall("Ole32.dll\IsEqualGUID", "Ptr", IID, "Ptr", IID_IUnknown)
+    ; DllCall("Ole32.dll\IsEqualGUID", "Ptr", IID, "Ptr", IID_IUnknown)  ; memcmp
     NumPut("UPtr", 0, pObject)
     return 0x80004002  ; E_NOINTERFACE: No such interface supported.
 } ; https://docs.microsoft.com/en-us/windows/desktop/api/unknwn/nf-unknwn-iunknown-queryinterface%28refiid_void%29
@@ -87,12 +87,12 @@ ComObjHandler_Release(Ptr)
 
 
 
-/*  EXAMPLE ---> <---
+/*  —> E.X.A.M.P.L.E <—
 Handler := ComObjHandler("MyInterface:&Method1|&Method2",,, "Handler_OnRelease")  ; & = &1 = for x86.
 MsgBox(Format("Handler.Ptr = {}`nHandler.Size = {} bytes`nHandler.VTable = {}`nMyInterface.Method1() = {}`nMyInterfaceMethod2() = {}"
-            , Handler.Ptr    . " (" . Format("0x{:016X}",Handler.Ptr)     . ")"
+            , Handler.Ptr    . " (" . Format("0x{:016X}",Handler.Ptr)    . ")"
             , Handler.Size
-            , Handler.VTable . " (" . Format("0x{:016X}", Handler.VTable) . ")"
+            , Handler.VTable . " (" . Format("0x{:016X}",Handler.VTable) . ")"
             , DllCall(Handler.pMethod1, "Int", 256, "Str")
             , DllCall(Handler.pMethod2, "Int", 666, "Str")
             )

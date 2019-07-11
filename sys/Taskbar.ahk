@@ -246,8 +246,8 @@ TaskbarGetTrayToolbar()
     local
     while hToolbar := ControlGetHwnd("ToolbarWindow32" . A_Index, "ahk_class Shell_TrayWnd")
         if WinGetClass("ahk_id" . DllCall("User32.dll\GetParent","Ptr",hToolbar,"Ptr")) == "SysPager"
-            return hToolbar
-    return 0
+            break
+    return [hToolbar,ControlGetHwnd("ToolbarWindow321","ahk_class NotifyIconOverflowWindow")]
 }
 
 

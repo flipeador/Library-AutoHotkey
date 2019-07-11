@@ -88,17 +88,17 @@ RE_FindText(RE, FindText := 0, ReplaceText := 0)
     Gui.Control["bfp"].OnEvent("Click", "Find_Prev")
     Gui.Control["brp"].OnEvent("Click", "Replace")
     Gui.Control["bra"].OnEvent("Click", "Replace_All")
-    Gui.Control["bcn"].OnEvent("Click", () => Gui.Control["crx"].Value ? CountRegEx() : Count())
+    Gui.Control["bcn"].OnEvent("Click", (*) => Gui.Control["crx"].Value ? CountRegEx() : Count())
     Gui.Control["bcl"].OnEvent("Click", "Close")
-    Gui.Control["csl"].OnEvent("Click", () => !Gui.Control["csl"].Value ? 0 : (list[RE.hWnd].sel := RE.GetSelection())
+    Gui.Control["csl"].OnEvent("Click", (*) => !Gui.Control["csl"].Value ? 0 : (list[RE.hWnd].sel := RE.GetSelection())
                                             . Gui.Control["sb"].SetText("Selection: Saved at (" . (list[RE.hWnd].sel.start+1) . ";" . (list[RE.hWnd].sel.end+1) . ")."))
-    Gui.Control["cmw"].OnEvent("Click", () => Gui.Control["cmb"].Enabled := !Gui.Control["cmw"].Value)
-    Gui.Control["cmb"].OnEvent("Click", () => Gui.Control["cmw"].Enabled := !Gui.Control["cmb"].Value)
+    Gui.Control["cmw"].OnEvent("Click", (*) => Gui.Control["cmb"].Enabled := !Gui.Control["cmw"].Value)
+    Gui.Control["cmb"].OnEvent("Click", (*) => Gui.Control["cmw"].Enabled := !Gui.Control["cmb"].Value)
     Gui.Control["crx"].OnEvent("Click", "Check_RexEx")
-    Gui.Control["cgs"].OnEvent("Click", () => RE.SetSelection(0) . Gui.Control["sb"].SetText("Goto: (1;1).") . (Gui.Control["csl"].Enabled:=FALSE) . RE.ScrollCaret())
+    Gui.Control["cgs"].OnEvent("Click", (*) => RE.SetSelection(0) . Gui.Control["sb"].SetText("Goto: (1;1).") . (Gui.Control["csl"].Enabled:=FALSE) . RE.ScrollCaret())
 
     Gui.OnEvent("Size", "Size")
-    Gui.OnEvent("Escape", () => Gui.Show("Minimize"))
+    Gui.OnEvent("Escape", (*) => Gui.Show("Minimize"))
     Gui.OnEvent("Close", "Close")
 
     WinGetPos(X, Y, W, H, "ahk_id" . RE.hWnd)
@@ -111,19 +111,19 @@ RE_FindText(RE, FindText := 0, ReplaceText := 0)
 
     ; ----------------------------------------------
 
-    Swamp_Strings()
+    Swamp_Strings(*)
     {
         local find_str := Gui.Control["eft"].Text
         Gui.Control["eft"].Text := Gui.Control["ert"].Text
         Gui.Control["ert"].Text := find_str
     }
 
-    Find_Next()
+    Find_Next(*)
     {
         return Find_PrevNext(TRUE)
     }
 
-    Find_Prev()
+    Find_Prev(*)
     {
         return Find_PrevNext(FALSE)
     }
@@ -188,7 +188,7 @@ RE_FindText(RE, FindText := 0, ReplaceText := 0)
         return 0
     }
 
-    Replace()
+    Replace(*)
     {
         Enabled(0), RE.ReplaceSel(Gui.Control["ert"].Text, TRUE, TRUE)
         if ( Gui.Control["car"].Value )
@@ -196,7 +196,7 @@ RE_FindText(RE, FindText := 0, ReplaceText := 0)
         Gui.Control["sb"].SetText("Replace: the occurrence was replaced."), Enabled()
     }
 
-    Replace_All()
+    Replace_All(*)
     {
         local replace_str := Gui.Control["ert"].Text
         local count := Enabled(0,0)
@@ -208,7 +208,7 @@ RE_FindText(RE, FindText := 0, ReplaceText := 0)
         Gui.Control["sb"].SetText("Replace all: " . count . " occurrences were replaced."), Enabled()
     }
 
-    Count()
+    Count(*)
     {
         local find_str := Gui.Control["eft"].Text
         local rng      := { min:0 }, max := -1, count := 0, msg := " in total." . Enabled(0)
@@ -233,7 +233,7 @@ RE_FindText(RE, FindText := 0, ReplaceText := 0)
         Gui.Control["sb"].SetText("Count: " . count . " matches" . msg), Enabled()
     }
 
-    CountRegEx()
+    CountRegEx(*)
     {
         local msg := Gui.Control["csl"].Value && Gui.Control["csl"].Enabled ? " in selection." : " in total.", count
         local rng := Gui.Control["csl"].Value && Gui.Control["csl"].Enabled ? RE.GetSelection() : { start:0, end:RE.GetTextLength() }
@@ -241,7 +241,7 @@ RE_FindText(RE, FindText := 0, ReplaceText := 0)
         Gui.Control["sb"].SetText("Count: " . count . " matches" . msg), Enabled()
     }
 
-    Check_RexEx()
+    Check_RexEx(*)
     {
         Gui.Control["cmc"].Enabled := Gui.Control["cmw"].Enabled := Gui.Control["cmb"].Enabled := Gui.Control["bfp"].Enabled := !Gui.Control["crx"].Value
         if ( !Gui.Control["crx"].Value )
@@ -266,7 +266,7 @@ RE_FindText(RE, FindText := 0, ReplaceText := 0)
         }
     }
 
-    Close()
+    Close(*)
     {
         list.delete(RE.hWnd)
         if ( !list.count() )

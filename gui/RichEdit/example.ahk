@@ -6,40 +6,40 @@
 
 MenuBar := MenuBarCreate()
 Menu_Open := MenuCreate()
-Menu_Open.Add("Automatic detection", () => RE.Load2(FileSelect(3)))   ; Automatic detection (ANSI, UTF-8, UTF-16LE/BE).
+Menu_Open.Add("Automatic detection", (*) => RE.Load2(FileSelect(3)))   ; Automatic detection (ANSI, UTF-8, UTF-16LE/BE).
 Menu_Open.Add()
-Menu_Open.Add("ANSI", () => RE.Load(FileSelect(3),1))                 ; ANSI (CP0).
-Menu_Open.Add("UTF-16LE", () => RE.Load(FileSelect(3),0x11))          ; UTF-16LE.
-Menu_Open.Add("RTF", () => RE.Load(FileSelect(3)))                    ; RTF.
+Menu_Open.Add("ANSI", (*) => RE.Load(FileSelect(3),1))                 ; ANSI (CP0).
+Menu_Open.Add("UTF-16LE", (*) => RE.Load(FileSelect(3),0x11))          ; UTF-16LE.
+Menu_Open.Add("RTF", (*) => RE.Load(FileSelect(3)))                    ; RTF.
 
 Menu_Save := MenuCreate()
-Menu_Save.Add("ANSI", () => RE.Save(FileSelect("S18"),1))          ; ANSI (CP0).
-Menu_Save.Add("UTF-16LE", () => RE.Save(FileSelect("S18"),0x11))   ; UTF-16LE.
-Menu_Save.Add("RTF", () => RE.Save(FileSelect("S18")))             ; RTF.
+Menu_Save.Add("ANSI", (*) => RE.Save(FileSelect("S18"),1))          ; ANSI (CP0).
+Menu_Save.Add("UTF-16LE", (*) => RE.Save(FileSelect("S18"),0x11))   ; UTF-16LE.
+Menu_Save.Add("RTF", (*) => RE.Save(FileSelect("S18")))             ; RTF.
 
 Menu_File := MenuCreate()
 Menu_File.Add("Open..", Menu_Open)
 Menu_File.Add("Save As..", Menu_Save)
 Menu_File.Add()
-Menu_File.Add("Reload", "Reload")
-Menu_File.Add("Exit", "ExitApp")
+Menu_File.Add("Reload", (*) => Reload())
+Menu_File.Add("Exit", (*) => ExitApp())
 
 Menu_Edit := MenuCreate()
-Menu_Edit.Add("Find and replace text..", () => RE_FindText(RE))
+Menu_Edit.Add("Find and replace text..", (*) => RE_FindText(RE))
 Menu_Edit.Add()
-Menu_Edit.Add("Read only", (t) => RE.GetOptions() & 0x800 ? RE.SetOptions(0x800,4) . Menu_Edit.UnCheck(t) : RE.SetOptions(0x800,2) . Menu_Edit.Check(t))
+Menu_Edit.Add("Read only", (t*) => RE.GetOptions() & 0x800 ? RE.SetOptions(0x800,4) . Menu_Edit.UnCheck(t[1]) : RE.SetOptions(0x800,2) . Menu_Edit.Check(t[1]))
 
 Menu_Underline := MenuCreate()
-Menu_Underline.Add("No underline", () => RE.SetFont("-Underline0",,1), "+Radio")
+Menu_Underline.Add("No underline", (*) => RE.SetFont("-Underline0",,1), "+Radio")
 Menu_Underline.Add()
-Menu_Underline.Add("Single solid line", () => RE.SetFont("Underline1",,1), "+Radio")
-Menu_Underline.Add("Words only", () => RE.SetFont("Underline2",,1), "+Radio")
-Menu_Underline.Add("Double line", () => RE.SetFont("Underline3",,1), "+Radio")
-Menu_Underline.Add("Dotted line", () => RE.SetFont("Underline4",,1), "+Radio")
-Menu_Underline.Add("Dashes", () => RE.SetFont("Underline5",,1), "+Radio")
-Menu_Underline.Add("Dashed and dotted line", () => RE.SetFont("Underline6",,1), "+Radio")
-Menu_Underline.Add("Dashed and doubled dotted line", () => RE.SetFont("Underline7",,1), "+Radio")
-Menu_Underline.Add("Wavy line", () => RE.SetFont("Underline8",,1))
+Menu_Underline.Add("Single solid line", (*) => RE.SetFont("Underline1",,1), "+Radio")
+Menu_Underline.Add("Words only", (*) => RE.SetFont("Underline2",,1), "+Radio")
+Menu_Underline.Add("Double line", (*) => RE.SetFont("Underline3",,1), "+Radio")
+Menu_Underline.Add("Dotted line", (*) => RE.SetFont("Underline4",,1), "+Radio")
+Menu_Underline.Add("Dashes", (*) => RE.SetFont("Underline5",,1), "+Radio")
+Menu_Underline.Add("Dashed and dotted line", (*) => RE.SetFont("Underline6",,1), "+Radio")
+Menu_Underline.Add("Dashed and doubled dotted line", (*) => RE.SetFont("Underline7",,1), "+Radio")
+Menu_Underline.Add("Wavy line", (*) => RE.SetFont("Underline8",,1))
 
 Menu_Effects := MenuCreate()
 loop parse, "Bold.Italic.Strike..Shadow.Protected.", "."
@@ -50,42 +50,42 @@ Menu_Insert := MenuCreate()
 Menu_Insert.Add("Hyperlink (URL)", "InsertHyperlink_URL")
 Menu_Insert.Add("Hyperlink (FILE)", "InsertHyperlink_File")
 Menu_Insert.Add()
-Menu_Insert.Add("Image file (WIN_8+)", () => RE.InsertImage2(FileSelect(3), PixelToHimetric(RE.Ctrl.Pos.W-50), PixelToHimetric(200)))
+Menu_Insert.Add("Image file (WIN_8+)", (*) => RE.InsertImage2(FileSelect(3), PixelToHimetric(RE.Ctrl.Pos.W-50), PixelToHimetric(200)))
 Menu_Insert.Add("Table", "InsertTable")
 
 Menu_Alignment := MenuCreate()
-Menu_Alignment.Add("Left", () => RE.SetAlignment(1) . Update_Menu_ParaFormat(), "+Radio")
-Menu_Alignment.Add("Center", () => RE.SetAlignment(3) . Update_Menu_ParaFormat(), "+Radio")
-Menu_Alignment.Add("Right", () => RE.SetAlignment(2) . Update_Menu_ParaFormat(), "+Radio")
+Menu_Alignment.Add("Left", (*) => RE.SetAlignment(1) . Update_Menu_ParaFormat(), "+Radio")
+Menu_Alignment.Add("Center", (*) => RE.SetAlignment(3) . Update_Menu_ParaFormat(), "+Radio")
+Menu_Alignment.Add("Right", (*) => RE.SetAlignment(2) . Update_Menu_ParaFormat(), "+Radio")
 
 Menu_LNSpacing := MenuCreate()
-Menu_LNSpacing.Add("Single spacing", () => RE.SetLineSpacing(0,0) . Update_Menu_ParaFormat(), "+Radio")
-Menu_LNSpacing.Add("One-and-a-half spacing", () => RE.SetLineSpacing(0,1) . Update_Menu_ParaFormat(), "+Radio")
-Menu_LNSpacing.Add("Double spacing", () => RE.SetLineSpacing(0,2) . Update_Menu_ParaFormat(), "+Radio")
+Menu_LNSpacing.Add("Single spacing", (*) => RE.SetLineSpacing(0,0) . Update_Menu_ParaFormat(), "+Radio")
+Menu_LNSpacing.Add("One-and-a-half spacing", (*) => RE.SetLineSpacing(0,1) . Update_Menu_ParaFormat(), "+Radio")
+Menu_LNSpacing.Add("Double spacing", (*) => RE.SetLineSpacing(0,2) . Update_Menu_ParaFormat(), "+Radio")
 Menu_LNSpacing.Add()
 Menu_LNSpacing.Add("From one line to the next (twips)", "LineSpacing", "+Radio")
 Menu_LNSpacing.Add("From one line to the next (twips. exact)", "LineSpacing", "+Radio")
 Menu_LNSpacing.Add("From one line to the next (lines. spacing/20)", "LineSpacing", "+Radio")
 
 Menu_Indent := MenuCreate()
-Menu_Indent.Add("Left", () => RE.SetIndentation(InputBox("Indentation of the first line in the paragraph, in twips.`n`nThis value is treated as a relative value that is added to the starting indentation of each affected paragraph.","Paragraph indentation",,RE.GetParaFormat().StartIndent)))
-Menu_Indent.Add("Right", () => RE.SetIndentation(,InputBox("Size, of the right indentation relative to the right margin, in twips.","Paragraph indentation",,RE.GetParaFormat().RightIndent)))
-Menu_Indent.Add("Offset", () => RE.SetIndentation(,,InputBox("Indentation of the second and subsequent lines of a paragraph relative to the starting indentation, in twips.`n`nThe first line is indented if this member is negative or outdented if this member is positive.","Paragraph indentation",,RE.GetParaFormat().Offset)))
+Menu_Indent.Add("Left", (*) => RE.SetIndentation(InputBox("Indentation of the first line in the paragraph, in twips.`n`nThis value is treated as a relative value that is added to the starting indentation of each affected paragraph.","Paragraph indentation",,RE.GetParaFormat().StartIndent)))
+Menu_Indent.Add("Right", (*) => RE.SetIndentation(,InputBox("Size, of the right indentation relative to the right margin, in twips.","Paragraph indentation",,RE.GetParaFormat().RightIndent)))
+Menu_Indent.Add("Offset", (*) => RE.SetIndentation(,,InputBox("Indentation of the second and subsequent lines of a paragraph relative to the starting indentation, in twips.`n`nThe first line is indented if this member is negative or outdented if this member is positive.","Paragraph indentation",,RE.GetParaFormat().Offset)))
 
 Menu_Numbering := MenuCreate()
-Menu_Numbering.Add("Bullet", () => RE.SetNumbering(1) . Update_Menu_ParaFormat(), "+Radio")
-Menu_Numbering.Add("0, 1, 2 ...", () => RE.SetNumbering(2) . Update_Menu_ParaFormat(), "+Radio")
-Menu_Numbering.Add("a, b, c ...", () => RE.SetNumbering(3) . Update_Menu_ParaFormat(), "+Radio")
-Menu_Numbering.Add("A, B, C ...`s", () => RE.SetNumbering(4) . Update_Menu_ParaFormat(), "+Radio")
-Menu_Numbering.Add("i, ii, iii ...", () => RE.SetNumbering(5) . Update_Menu_ParaFormat(), "+Radio")
-Menu_Numbering.Add("I, II, III ...`s", () => RE.SetNumbering(6) . Update_Menu_ParaFormat(), "+Radio")
+Menu_Numbering.Add("Bullet", (*) => RE.SetNumbering(1) . Update_Menu_ParaFormat(), "+Radio")
+Menu_Numbering.Add("0, 1, 2 ...", (*) => RE.SetNumbering(2) . Update_Menu_ParaFormat(), "+Radio")
+Menu_Numbering.Add("a, b, c ...", (*) => RE.SetNumbering(3) . Update_Menu_ParaFormat(), "+Radio")
+Menu_Numbering.Add("A, B, C ...`s", (*) => RE.SetNumbering(4) . Update_Menu_ParaFormat(), "+Radio")
+Menu_Numbering.Add("i, ii, iii ...", (*) => RE.SetNumbering(5) . Update_Menu_ParaFormat(), "+Radio")
+Menu_Numbering.Add("I, II, III ...`s", (*) => RE.SetNumbering(6) . Update_Menu_ParaFormat(), "+Radio")
 Menu_Numbering.Add()
 Menu_Numbering.Add("Numbering start", (n) => RE.SetNumbering(,InputBox("Starting number used for numbered paragraphs.",n,,RE.GetParaFormat().NumStart)))
 Menu_Numbering.Add("Numbering tab", (n) => RE.SetNumbering(,,,InputBox("Minimum space between a paragraph number and the paragraph text, in twips.",n,,RE.GetParaFormat().NumTab)))
 
 Menu_Spacing := MenuCreate()
-Menu_Spacing.Add("Before", () => RE.SetSpacing(InputBox("Size of the spacing above the paragraph, in twips.`n`nThe value must be greater than or equal to zero.","Spacing before",,RE.GetParaFormat().SpacingBefore)))
-Menu_Spacing.Add("After", () => RE.SetSpacing(,InputBox("Specifies the size of the spacing below the paragraph, in twips.`n`nThe value must be greater than or equal to zero.","Spacing after",,RE.GetParaFormat().SpacingAfter)))
+Menu_Spacing.Add("Before", (*) => RE.SetSpacing(InputBox("Size of the spacing above the paragraph, in twips.`n`nThe value must be greater than or equal to zero.","Spacing before",,RE.GetParaFormat().SpacingBefore)))
+Menu_Spacing.Add("After", (*) => RE.SetSpacing(,InputBox("Specifies the size of the spacing below the paragraph, in twips.`n`nThe value must be greater than or equal to zero.","Spacing after",,RE.GetParaFormat().SpacingAfter)))
 
 Menu_ParaFormat := MenuCreate()
 Menu_ParaFormat.Add("Alignment", Menu_Alignment)
@@ -94,7 +94,7 @@ Menu_ParaFormat.Add("Indentation", Menu_Indent)
 Menu_ParaFormat.Add("Numbering", Menu_Numbering)
 Menu_ParaFormat.Add("Spacing", Menu_Spacing)
 Menu_ParaFormat.Add()
-Menu_ParaFormat.Add("Default tab stops", (n) => RE.SetDefaultTabStops(InputBox("Unsigned integers specifying the tab stops, in dialog template units.`n`nString with unsigned integers delimited by '|'.",n,,RE.DefTabStops)))
+Menu_ParaFormat.Add("Default tab stops", (n*) => RE.SetDefaultTabStops(InputBox("Unsigned integers specifying the tab stops, in dialog template units.`n`nString with unsigned integers delimited by '|'.",n[1],,RE.DefTabStops)))
 
 MenuBar.Add("File", Menu_File)
 MenuBar.Add("Edit", Menu_Edit)
@@ -161,7 +161,7 @@ return
 /*
     MENUBAR FUNCTIONS.
 */
-InsertHyperlink_URL()
+InsertHyperlink_URL(*)
 {
     global RE
     local r := InputBox("Format:`n`tHyperlink Label`n`nExample:`n`twww.example.com An example.", "Insert friendly hyperlink")
@@ -179,7 +179,7 @@ LineSpacing(ItemName, ItemPos, Menu)
     Update_Menu_ParaFormat()
 }
 
-InsertHyperlink_FILE()
+InsertHyperlink_FILE(*)
 {
     global RE
     local Path := FileSelect(), FNNE, _ := SplitPath(Path,,,, FNNE)
@@ -188,7 +188,7 @@ InsertHyperlink_FILE()
 }
 
 
-InsertTable()
+InsertTable(*)
 {
     global RE
     local tbl := StrSplit(InputBox("The measurements are in Twips.`n`nTwip = Pixel / DPI * 1440.","Insert table.", "w500","Cells: 1, Rows: 1, CellWidth: 500, LeftMargin: 144, BorderWidth: 10."), ",")
@@ -307,18 +307,18 @@ EN_MSGFILTER(Ctrl, lParam)
     {
         local menu := MenuCreate(), _ := 0
         local curtxt := RE.GetCurText()
-        menu.add("Undo", () => RE.Undo()), _ := RE.CanUndo() ? 0 : menu.disable("Undo")
-        menu.add("Redo", () => RE.Redo()), _ := RE.CanRedo() ? 0 : menu.disable("Redo")
+        menu.add("Undo", (*) => RE.Undo()), _ := RE.CanUndo() ? 0 : menu.disable("Undo")
+        menu.add("Redo", (*) => RE.Redo()), _ := RE.CanRedo() ? 0 : menu.disable("Redo")
         menu.add()
-        menu.add("Cut", () => RE.Cut()), _ := RE.SelectionType() ? 0 : menu.disable("Cut")
-        menu.add("Copy", () => RE.Copy()), _ := RE.SelectionType() ? 0 : menu.disable("Copy")
-        menu.add("Paste", () => RE.Paste()), _ := Clipboard == "" ? menu.disable("Paste") : 0
-        menu.add("Delete", () => RE.Clear()), _ := RE.SelectionType() ? 0 : menu.disable("Delete")
+        menu.add("Cut", (*) => RE.Cut()), _ := RE.SelectionType() ? 0 : menu.disable("Cut")
+        menu.add("Copy", (*) => RE.Copy()), _ := RE.SelectionType() ? 0 : menu.disable("Copy")
+        menu.add("Paste", (*) => RE.Paste()), _ := Clipboard == "" ? menu.disable("Paste") : 0
+        menu.add("Delete", (*) => RE.Clear()), _ := RE.SelectionType() ? 0 : menu.disable("Delete")
         menu.add()
-        menu.add("Select All", () => RE.SelectAll()), _ := RE.GetTextLength() ? 0 : menu.disable("Select All")
+        menu.add("Select All", (*) => RE.SelectAll()), _ := RE.GetTextLength() ? 0 : menu.disable("Select All")
         menu.add()
-        menu.add("Open Hyperlink", () => Run(GetUrlCaret(curtxt,RE.column+1))), _ := GetUrlCaret(curtxt,RE.column+1) == "" ? menu.disable("Open Hyperlink") : 0
-        menu.add("Google search", () => GoogleSearch(RE.GetSelText())), _ := RegExReplace(RE.GetSelText(),"\s") == "" ? menu.disable("Google search") : 0
+        menu.add("Open Hyperlink", (*) => Run(GetUrlCaret(curtxt,RE.column+1))), _ := GetUrlCaret(curtxt,RE.column+1) == "" ? menu.disable("Open Hyperlink") : 0
+        menu.add("Google search", (*) => GoogleSearch(RE.GetSelText())), _ := RegExReplace(RE.GetSelText(),"\s") == "" ? menu.disable("Google search") : 0
         menu.show()
     } ; https://docs.microsoft.com/en-us/windows/desktop/inputdev/wm-rbuttonup
 } ; https://docs.microsoft.com/en-us/windows/desktop/controls/en-msgfilter
@@ -361,7 +361,7 @@ EN_SELCHANGE(Ctrl := 0, lParam := 0)
 } ; https://docs.microsoft.com/en-us/windows/desktop/controls/en-selchange
 
 
-Update_Menu_ParaFormat()
+Update_Menu_ParaFormat(*)
 {
     global RE, Menu_Alignment, Menu_LNSpacing, Menu_Numbering
     local fmt := RE.GetParaFormat()
@@ -379,7 +379,7 @@ Update_Menu_ParaFormat()
         Menu_Numbering.Check(fmt.Numbering . "&")
 }
 
-Update_Menu_Effects()
+Update_Menu_Effects(*)
 {
     global RE, Menu_Effects, Menu_Underline
     local fnt := RE.GetFont(1)

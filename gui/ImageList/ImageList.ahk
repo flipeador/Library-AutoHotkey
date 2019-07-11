@@ -3,7 +3,7 @@
     ; ===================================================================================================================
     ; STATIC/CLASS VARIABLES
     ; ===================================================================================================================
-    static  DPI := A_ScreenDPI  ; The DPI to use for scaling the metrics.
+    static DPI := A_ScreenDPI  ; The DPI to use for scaling the metrics.
 
 
     ; ===================================================================================================================
@@ -43,11 +43,11 @@
                 : Height == -2 ? DllCall("User32.dll\GetSystemMetricsForDpi", "Int", 12, "UInt", ImageList.DPI)  ; SM_CYICON.
                 : Abs(Integer(Height))
 
-        this.Handle := DllCall("Comctl32.dll\ImageList_Create", "Int", Width
-                                                              , "Int", Height
+        this.Handle := DllCall("Comctl32.dll\ImageList_Create",  "Int", Width
+                                                              ,  "Int", Height
                                                               , "UInt", Flags
-                                                              , "Int", InitialCount
-                                                              , "Int", GrowCount
+                                                              ,  "Int", InitialCount
+                                                              ,  "Int", GrowCount
                                                               , "UPtr")
 
         if (this.Handle == 0)
@@ -64,7 +64,7 @@
             Creates an image list from a Base64 string.
             Parameters:
                 Data:
-                    A string, a pointer to a null terminated string or a buffer object containing a null terminated string.
+                    A string, a pointer to a null terminated string or a Buffer object containing a null terminated string.
         */
         __New(Data)
         {
@@ -136,14 +136,14 @@
     GetIconSize()
     {
         local Width := 0, Height := 0
-        local R := DllCall("Comctl32.dll\ImageList_Destroy", "Ptr", this.Handle, "IntP", Width, "IntP", Height)
-        return R ? { W:Width , H:Height } : 0
+        return DllCall("Comctl32.dll\ImageList_GetIconSize", "Ptr", this.Handle, "IntP", Width, "IntP", Height)
+             ? { W:Width , H:Height } : 0
     } ; https://docs.microsoft.com/en-us/windows/desktop/api/Commctrl/nf-commctrl-imagelist_geticonsize
 
     /*
         Saves the image list as a Base64 string.
         Return value:
-            Returns the binary data encoded as a Base64 string.
+            The return value is a string containing the binary data encoded as a Base64 string.
     */
     Save()
     {

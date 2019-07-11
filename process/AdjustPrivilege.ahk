@@ -1,46 +1,73 @@
 ﻿/*
-    Habilita o deshabilita un privilegio al proceso de llamada.
-    Parámetros:
-        Privilege: Un valor que identifica al privilegio. Este parámetro debe ser uno de los siguientes valores (algunos pueden no estar disponibles):
-            SeAssignPrimaryTokenPrivilege   = 3
-            SeAuditPrivilege                = 21
-            SeBackupPrivilege               = 17
-            SeChangeNotifyPrivilege         = 23
-            SeCreateGlobalPrivilege         = 30
-            SeCreatePagefilePrivilege       = 15
-            SeCreatePermanentPrivilege      = 16
-            SeCreateSymbolicLinkPrivilege   = 35
-            SeCreateTokenPrivilege          = 2
-            SeDebugPrivilege                = 20
-            SeEnableDelegationPrivilege     = 27
-            SeImpersonatePrivilege          = 29
-            SeIncreaseBasePriorityPrivilege = 14
-            SeIncreaseQuotaPrivilege        = 5
-            SeIncreaseWorkingSetPrivilege   = 33
-            SeLoadDriverPrivilege           = 10
-            SeLockMemoryPrivilege           = 4
-            SeMachineAccountPrivilege       = 6
-            SeManageVolumePrivilege         = 28
-            SeProfileSingleProcessPrivilege = 13
-            SeRelabelPrivilege              = 32
-            SeRemoteShutdownPrivilege       = 24
-            SeRestorePrivilege              = 18
-            SeSecurityPrivilege             = 8
-            SeShutdownPrivilege             = 19
-            SeSyncAgentPrivilege            = 26
-            SeSystemEnvironmentPrivilege    = 22
-            SeSystemProfilePrivilege        = 11
-            SeSystemtimePrivilege           = 12
-            SeTakeOwnershipPrivilege        = 9
-            SeTcbPrivilege                  = 7
-            SeTimeZonePrivilege             = 34
-            SeTrustedCredManAccessPrivilege = 31
-            SeUndockPrivilege               = 25
-            SeUnsolicitedInputPrivilege     = 0
-        Enable   : Si este parámetro es 1 se habilita, si es 0 se deshabilita.
+    Enables or disables a privilege in the current process.
+    Parameters:
+        Privilege:
+            0      SeUnsolicitedInputPrivilege 
+            2      SeCreateTokenPrivilege    
+            3      SeAssignPrimaryTokenPrivilege  
+            4      SeLockMemoryPrivilege  
+            5      SeIncreaseQuotaPrivilege      
+            6      SeMachineAccountPrivilege     
+            7      SeTcbPrivilege    
+            8      SeSecurityPrivilege            
+            9      SeTakeOwnershipPrivilege  
+            10     SeLoadDriverPrivilege    
+            11     SeSystemProfilePrivilege       
+            12     SeSystemtimePrivilege  
+            13     SeProfileSingleProcessPrivilege
+            14     SeIncreaseBasePriorityPrivilege
+            21     SeAuditPrivilege               
+            17     SeBackupPrivilege              
+            23     SeChangeNotifyPrivilege        
+            30     SeCreateGlobalPrivilege        
+            15     SeCreatePagefilePrivilege      
+            16     SeCreatePermanentPrivilege     
+            18     SeRestorePrivilege 
+            19     SeShutdownPrivilege 
+            35     SeCreateSymbolicLinkPrivilege  
+            20     SeDebugPrivilege    
+            22     SeSystemEnvironmentPrivilege        
+            24     SeRemoteShutdownPrivilege    
+            25     SeUndockPrivilege   
+            26     SeSyncAgentPrivilege    
+            27     SeEnableDelegationPrivilege    
+            28     SeManageVolumePrivilege     
+            29     SeImpersonatePrivilege 
+            31     SeTrustedCredManAccessPrivilege    
+            32     SeRelabelPrivilege       
+            33     SeIncreaseWorkingSetPrivilege  
+            34     SeTimeZonePrivilege   
+        Enable:
+            FALSE    Disable the specified privilege.
+            TRUE     Enable the specified privilege.
+        IsThreadPrivilege:
+            FALSE    Open current process.
+            TRUE     Open current thread.
+    Return value:
+        If the function succeeds, the return value is non-zero.
+        If the function fails, the return value is zero. To get extended error information, check A_LastError (NTSTATUS).
 */
-AdjustPrivilege(Privilege, Enable := TRUE)
+AdjustPrivilege(Privilege, Enable := TRUE, IsThreadPrivilege := FALSE)
 {
-    Local t
-    Return !DllCall('Ntdll.dll\RtlAdjustPrivilege', 'UInt', Privilege, 'UChar', Enable, 'UChar', FALSE, 'IntP', t)
-}
+    local NtStatus := DllCall("Ntdll.dll\RtlAdjustPrivilege",   "UInt", Privilege            ; ULONG.
+                                                            ,  "UChar", !!Enable             ; BOOLEAN.
+                                                            ,  "UChar", !!IsThreadPrivilege  ; BOOLEAN.
+                                                            , "UCharP", 0                    ; PBOOLEAN.
+                                                            ,   "UInt")
+    ; The last parameter is supposed to return the previous value, but it doesn't work.
+
+    if (NtStatus !== 0)
+    {
+        A_LastError := NtStatus
+        return FALSE
+    }
+
+    return TRUE
+} ; https://source.winehq.org/WineAPI/RtlAdjustPrivilege.html
+
+
+
+
+
+;MsgBox(Format("STATUS_PRIVILEGE_NOT_HELD`s=`s0x{2:08X}",AdjustPrivilege(-1),A_LastError))
+;MsgBox(Format("STATUS_SUCCESS`s=`s0x{2:08X}",A_LastError:=0*AdjustPrivilege(20),A_LastError))
