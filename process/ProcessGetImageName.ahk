@@ -1,7 +1,7 @@
 ﻿/*
     Retrieves the full name of the executable image for the specified process.
     Parameters:
-        hProcess:
+        Process:
             A handle to the process.
             The handle must have the PROCESS_QUERY_INFORMATION or PROCESS_QUERY_LIMITED_INFORMATION access right.
         Flags:
@@ -10,14 +10,14 @@
             0x00000001     The name should use the native system path format.
     Return value:
         If the function succeeds, the return value is a string with the full name of the executable image.
-        If the function fails, the return value is zero. To get extended error information, check A_LastError.
+        If the function fails, the return value is zero. To get extended error information, check A_LastError (WIN32).
 */
-ProcessGetImageName(hProcess, Flags := 0x00000000)
+ProcessGetImageName(Process, Flags := 0x00000000)
 {
     local Buffer := BufferAlloc(2*32767+2)
     local Size   := Buffer.Size // 2
 
-    return DllCall("Kernel32.dll\QueryFullProcessImageNameW",  "UPtr", IsObject(hProcess) ? hProcess.Handle : hProcess
+    return DllCall("Kernel32.dll\QueryFullProcessImageNameW",  "UPtr", IsObject(Process) ? Process.Handle : Process
                                                             ,  "UInt", Flags
                                                             ,  "UPtr", Buffer.Ptr
                                                             , "UIntP", Size)

@@ -49,20 +49,14 @@
 */
 AdjustPrivilege(Privilege, Enable := TRUE, IsThreadPrivilege := FALSE)
 {
-    local NtStatus := DllCall("Ntdll.dll\RtlAdjustPrivilege",   "UInt", Privilege            ; ULONG.
-                                                            ,  "UChar", !!Enable             ; BOOLEAN.
-                                                            ,  "UChar", !!IsThreadPrivilege  ; BOOLEAN.
-                                                            , "UCharP", 0                    ; PBOOLEAN.
-                                                            ,   "UInt")
+    A_LastError := DllCall("Ntdll.dll\RtlAdjustPrivilege",   "UInt", Privilege            ; ULONG.
+                                                         ,  "UChar", !!Enable             ; BOOLEAN.
+                                                         ,  "UChar", !!IsThreadPrivilege  ; BOOLEAN.
+                                                         , "UCharP", 0                    ; PBOOLEAN.
+                                                         ,   "UInt")
     ; The last parameter is supposed to return the previous value, but it doesn't work.
 
-    if (NtStatus !== 0)
-    {
-        A_LastError := NtStatus
-        return FALSE
-    }
-
-    return TRUE
+    return A_LastError == 0 ? TRUE : FALSE
 } ; https://source.winehq.org/WineAPI/RtlAdjustPrivilege.html
 
 

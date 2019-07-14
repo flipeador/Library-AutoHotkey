@@ -39,7 +39,7 @@ ProcessOpen(Process := -1, DesiredAccess := 0x1F0FFF, Attributes := 0)
              : Type(Process) == "Integer" ? Process         ; Process identifier.
              : ProcessExist(Process)                        ; Process name.
 
-    return new IProcess(Process==""?0:Process, DesiredAccess, Attributes)
+    return new IProcess(Process, DesiredAccess, Attributes)
 }
 
 
@@ -120,8 +120,8 @@ class IProcess
         Retrieves the termination status of this process.
         The handle must have the PROCESS_QUERY_INFORMATION or PROCESS_QUERY_LIMITED_INFORMATION access right.
         Return value:
-            If the function succeeds, the return value is the process termination status (UInt).
-            If the function fails, the return value is <0. To get extended error information, check A_LastError.
+            If the function succeeds, the return value is the process termination status.
+            If the function fails, the return value is <0. To get extended error information, check A_LastError (WIN32).
     */
     GetExitCode()
     {
@@ -142,17 +142,10 @@ class IProcess
     */
     Terminate(ExitCode := 0)
     {
-        local NtStatus := DllCall("Ntdll.dll\NtTerminateProcess", "UPtr", this.Handle
-                                                                , "UInt", ExitCode
-                                                                , "UInt")
-
-        if (NtStatus !== 0)
-        {
-            A_LastError := NtStatus
-            return FALSE
-        }
-
-        return TRUE
+        A_LastError := DllCall("Ntdll.dll\NtTerminateProcess", "UPtr", this.Handle
+                                                             , "UInt", ExitCode
+                                                             , "UInt")
+        return A_LastError == 0 ? TRUE : FALSE
     } ; https://undocumented.ntinternals.net/index.html?page=UserMode%2FUndocumented%20Functions%2FNT%20Objects%2FProcess%2FNtTerminateProcess.html
 }
 
