@@ -70,10 +70,10 @@ ProcessGetList()
 */
 ProcessGetList2()
 {
-    local Buffer   := BufferAlloc(1000000)  ; 1MB - I think it's enough space, we avoid two calls to NtQuerySystemInformation.
+    local Buffer   := BufferAlloc(1000000)  ; 1MB.
     local NtStatus := DllCall("Ntdll.dll\NtQuerySystemInformation", "Int", 5, "Ptr", Buffer, "UInt", Buffer.Size, "UIntP", 0, "UInt")
 
-    if (NtStatus == 0)  ; STATUS_SUCCESS = 0.
+    if (NtStatus == 0x00000000)  ; STATUS_SUCCESS = 0.
     {
         local ProcessList     := []          ; An array of associative objects containing information from each process.
         local Ptr             := Buffer.Ptr  ; Pointer to structure SYSTEM_PROCESS_INFORMATION / SYSTEM_PROCESSES_INFORMATION (same data).
@@ -82,15 +82,15 @@ ProcessGetList2()
         loop
         {
             ProcessList.Push( { ThreadCount           : NumGet(Ptr, 4, "UInt")                                       ; ULONG     NumberOfThreads.
-                              , ProcessName           : StrGet(NumGet(Ptr,56+A_PtrSize),NumGet(Ptr+56,"UShort")//2)  ; ImageName.Buffer (UNICODE_STRING structure).
-                              , BasePriority          : NumGet(Ptr, 56+2*A_PtrSize, "UInt")                          ; KPRIORITY BasePriority.
-                              , ProcessId             : NumGet(Ptr, 56+3*A_PtrSize, "UPtr")                          ; HANDLE    UniqueProcessId.
-                              , ParentProcessId       : NumGet(Ptr, 56+4*A_PtrSize, "UPtr")                          ; PVOID     Reserved2/InheritedFromUniqueProcessId.
-                              , HandleCount           : NumGet(Ptr, 56+5*A_PtrSize, "UInt")                          ; ULONG     HandleCount.
-                              , SessionId             : NumGet(Ptr, 60+5*A_PtrSize, "UInt")                          ; ULONG     SessionId.
-                              , PeakVirtualSize       : NumGet(Ptr, 64+6*A_PtrSize, "UPtr")                          ; SIZE_T    PeakVirtualSize.
-                              , VirtualSize           : NumGet(Ptr, 64+7*A_PtrSize, "UPtr")                          ; SIZE_T    VirtualSize.
-                              , PeakWorkingSetSize    : NumGet(Ptr, 64+9*A_PtrSize, "UPtr")                          ; SIZE_T    PeakWorkingSetSize.
+                              , ProcessName           : StrGet(NumGet(Ptr,56+A_PtrSize),NumGet(Ptr,56,"UShort")//2)  ; ImageName.Buffer (UNICODE_STRING structure).
+                              , BasePriority          : NumGet(Ptr,  56+2*A_PtrSize, "UInt")                         ; KPRIORITY BasePriority.
+                              , ProcessId             : NumGet(Ptr,  56+3*A_PtrSize, "UPtr")                         ; HANDLE    UniqueProcessId.
+                              , ParentProcessId       : NumGet(Ptr,  56+4*A_PtrSize, "UPtr")                         ; PVOID     Reserved2/InheritedFromUniqueProcessId.
+                              , HandleCount           : NumGet(Ptr,  56+5*A_PtrSize, "UInt")                         ; ULONG     HandleCount.
+                              , SessionId             : NumGet(Ptr,  60+5*A_PtrSize, "UInt")                         ; ULONG     SessionId.
+                              , PeakVirtualSize       : NumGet(Ptr,  64+6*A_PtrSize, "UPtr")                         ; SIZE_T    PeakVirtualSize.
+                              , VirtualSize           : NumGet(Ptr,  64+7*A_PtrSize, "UPtr")                         ; SIZE_T    VirtualSize.
+                              , PeakWorkingSetSize    : NumGet(Ptr,  64+9*A_PtrSize, "UPtr")                         ; SIZE_T    PeakWorkingSetSize.
                               , WorkingSetSize        : NumGet(Ptr, 64+10*A_PtrSize, "UPtr")                         ; SIZE_T    WorkingSetSize.
                               , QuotaPagedPoolUsage   : NumGet(Ptr, 64+12*A_PtrSize, "UPtr")                         ; SIZE_T    QuotaPagedPoolUsage.
                               , QuotaNonPagedPoolUsage: NumGet(Ptr, 64+14*A_PtrSize, "UPtr")                         ; SIZE_T    QuotaNonPagedPoolUsage.
@@ -181,7 +181,7 @@ WTSProcessEnum(Server := 0, SessionId := -2)
                           , ProcessId         : NumGet(Ptr, 4, "UInt")                     ; DWORD         ProcessId.
                           , ProcessName       : StrGet(NumGet(Ptr,8))                      ; LPSTR         pProcessName.
                           , UserSid           : pUserSid ? UserSid : 0                     ; PSID          pUserSid.
-                          , ThreadCount       : NumGet(Ptr, 8+2*A_PtrSize, "UInt")         ; DWORD         NumberOfThreads.
+                          , ThreadCount       : NumGet(Ptr,  8+2*A_PtrSize, "UInt")        ; DWORD         NumberOfThreads.
                           , HandleCount       : NumGet(Ptr, 12+2*A_PtrSize, "UInt")        ; DWORD         HandleCount.
                           , PagefileUsage     : NumGet(Ptr, 16+2*A_PtrSize, "UInt")        ; DWORD         PagefileUsage.
                           , PeakPagefileUsage : NumGet(Ptr, 20+2*A_PtrSize, "UInt")        ; DWORD         PeakPagefileUsage.

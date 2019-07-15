@@ -3,7 +3,7 @@
     Parameters:
         Process:
             A handle to the process.
-            The handle must have the PROCESS_QUERY_INFORMATION or PROCESS_QUERY_LIMITED_INFORMATION access right.
+            The handle must have the PROCESS_QUERY_LIMITED_INFORMATION access right.
         Flags:
             This parameter can be one of the following values.
             0x00000000     The name should use the Win32 path format.

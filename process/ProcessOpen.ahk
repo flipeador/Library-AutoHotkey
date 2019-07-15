@@ -31,7 +31,7 @@
         If the function fails, the return value is zero. To get extended error information, check A_LastError (NTSTATUS).
     Remarks:
         To open a handle to another local process and obtain full access rights, you must enable the SeDebugPrivilege privilege.
-        When all references to the returned object are released, the process handle will be closed; Unless flag 0x00000002 is specified.
+        When all references to the returned object are released, the process handle will be closed.
 */
 ProcessOpen(Process := -1, DesiredAccess := 0x1F0FFF, Attributes := 0)
 {
@@ -118,7 +118,7 @@ class IProcess
     ; ===================================================================================================================
     /*
         Retrieves the termination status of this process.
-        The handle must have the PROCESS_QUERY_INFORMATION or PROCESS_QUERY_LIMITED_INFORMATION access right.
+        The handle must have the PROCESS_QUERY_LIMITED_INFORMATION access right.
         Return value:
             If the function succeeds, the return value is the process termination status.
             If the function fails, the return value is <0. To get extended error information, check A_LastError (WIN32).
@@ -154,6 +154,34 @@ class IProcess
 
 
 /*
+    Opens the next process in relation to the specified process.
+    Parameters:
+        Process:
+            A handle to the process.
+            This parameter can be zero to start from the first process.
+        DesiredAccess / HandleAttributes:
+            See the ProcessOpen function.
+    Return value:
+        If the function succeeds, the return value is an IProcess class object.
+        If the function fails, the return value is zero. To get extended error information, check A_LastError (NTSTATUS).
+*/
+ProcessGetNext(Process, DesiredAccess, HandleAttributes := 0, Flags := 0)
+{
+    local hProcess := 0
+    A_LastError := DllCall("Ntdll.dll\NtGetNextProcess",  "UPtr", IsObject(Process) ? Process.Handle : Process
+                                                       ,  "UInt", DesiredAccess
+                                                       ,  "UInt", HandleAttributes
+                                                       ,  "UInt", Flags
+                                                       , "UPtrP", hProcess
+                                                       ,  "UInt")
+    return hProcess ? new IProcess.FromHandle(hProcess) : 0
+}
+
+
+
+
+
+/*
     Checks whether the specified handle belongs to a process.
     Parameters:
         Handle:
@@ -168,3 +196,22 @@ ProcessCheckHandle(Handle)
         || A_LastError !== 0x00000006  ; ERROR_INVALID_HANDLE = 0x00000006.
          ? Handle : 0
 }
+
+
+
+
+
+/*
+    Retrieves the process identifier of the specified process.
+    Parameters:
+        A handle to the process.
+        The handle must have the PROCESS_QUERY_LIMITED_INFORMATION access right.
+    Return value:
+        If the handle is valid and the process still exists, the return value is the process identifier. Otherwise, it is zero.
+    Remarks:
+        Until a process terminates, its process identifier uniquely identifies it on the system.
+*/
+ProcessGetID(Process)
+{
+    return DllCall("Kernel32.dll\GetProcessId", "Ptr", IsObject(Process)?Process.Handle:Process, "UInt")
+} ; https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocessid
