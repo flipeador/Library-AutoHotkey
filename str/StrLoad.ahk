@@ -7,7 +7,7 @@
         Identifier:
             The identifier of the string to be loaded.
         Buffer:
-            The buffer to receive the string. This parameter should be an integer or a Buffer object.
+            The buffer to receive the string. This parameter must be an integer or a Buffer object.
             If this parameter is non-zero, the function returns the number of characters copied into the buffer, not including the terminating null character.
         Length:
             The size of the buffer, in characters, including the null-terminated character.
@@ -15,7 +15,7 @@
             This parameter is ignored if «Buffer» is set to zero. If «Buffer» is a Buffer object, this parameter can be omitted.
     Return value:
         Returns an object with the keys: 'Instance', 'ID', 'Ptr', 'Str', 'Length' and 'Size'.
-        If the string resource does not exist, 'Length' are zero.
+        If the string resource does not exist, 'Length' is zero.
     Remarks:
         Resource tables can contain null characters. String resources are stored in blocks of 16 strings, and any empty slots within a block are indicated by null characters.
 */
@@ -29,7 +29,7 @@ StrLoad(Instance, Identifier, Buffer := 0, Length := -1)
 
     return { Instance: Instance , ID  : Identifier
            , Ptr     : Ptr      , Str : Ptr ? StrGet(Ptr,Length,"UTF-16") : ""
-           , Length  : Length   , Size: 2 * Length                    }
+           , Length  : Length   , Size: 2 * Length                             }
 
 } ; https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-loadstringw
 

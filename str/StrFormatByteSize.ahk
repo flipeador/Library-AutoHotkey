@@ -4,8 +4,8 @@
         Number:
             The numeric value to be converted.
         Flags:
-            1 SFBS_FLAGS_ROUND_TO_NEAREST_DISPLAYED_DIGIT      Round to the nearest displayed digit.
-            2 SFBS_FLAGS_TRUNCATE_UNDISPLAYED_DECIMAL_DIGITS   Discard undisplayed digits.
+            1  SFBS_FLAGS_ROUND_TO_NEAREST_DISPLAYED_DIGIT      Round to the nearest displayed digit.
+            2  SFBS_FLAGS_TRUNCATE_UNDISPLAYED_DECIMAL_DIGITS   Discard undisplayed digits.
     Remarks:
         In Windows 10, size is reported in base 10 rather than base 2. For example, 1 KB is 1000 bytes rather than 1024.
 */

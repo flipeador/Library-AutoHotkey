@@ -4,10 +4,10 @@
         String:
             A string in which to perform the operation.
         VarList:
-            A Map object (associative array) with the variables to be expanded.
+            A Map object containing variables to be expanded.
             Variables that are not included in the object will not be replaced.
     Return value:
-        Return the formatted string.
+        The return value is a string.
 */
 StrExpandVar(String, VarList)
 {
