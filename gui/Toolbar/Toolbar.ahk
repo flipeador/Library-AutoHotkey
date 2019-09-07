@@ -1,64 +1,56 @@
 ﻿/*
     Remarks:
         Item indexes are zero based.
-        Sometimes DllCall is used instead of SendMessage for better performance.
+        Items can be identified by their index or their command identifier.
+        DllCall is used instead of SendMessage to improve performance.
     Toolbar Control Reference:
         https://docs.microsoft.com/en-us/windows/desktop/controls/toolbar-control-reference.
 */
-class Toolbar
+class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/boards/memberlist.php?mode=viewprofile&u=60315
 {
     ; ===================================================================================================================
-    ; STATIC/CLASS VARIABLES
+    ; STATIC/CLASS VARIABLES (readonly)
     ; ===================================================================================================================
     static Type         := "Toolbar"          ; The type of the control.
-    static ClassName    := "ToolbarWindow32"  ; Control class.
-    static Instance     := { }                ; Instances of this control {hwnd:ctrl_obj}.
+    static ClassName    := "ToolbarWindow32"  ; The control class name.
+    static Instance     := Map()              ; Instances of this control (hWnd:obj).
 
 
     ; ===================================================================================================================
-    ; INSTANCE VARIABLES
+    ; INSTANCE VARIABLES (readonly)
     ; ===================================================================================================================
-    Gui          := 0         ; Gui Object.
-    Ctrl         := 0         ; Gui Control Object.
-    hWnd         := 0         ; The HWND of the control.
-    hGui         := 0         ; The HWND of the GUI.
+    Gui          := 0         ; The Gui object associated with this control.
+    Ctrl         := 0         ; This Gui control class object.
+    hWnd         := 0         ; The Handle of this control.
 
 
     ; ===================================================================================================================
     ; CONSTRUCTOR
     ; ===================================================================================================================
     /*
-        Adds a Toolbar control to the specified GUI window.
+        Adds a Toolbar control to the specified GUI window. The CreateToolbar function can be used to create the control.
         Parameters:
             Gui:
-                The GUI window object.
-                You can specify an existing control HWND to retrieve the Toolbar control object.
+                The GUI window object. This object must be previously created by a call to the GuiCreate function.
             Options:
                 Some specific options for this control. You can specify one or more of the following words.
                 Menu          Creates a toolbar that simulates Windows menu.
                 Flat          In a flat toolbar, both the toolbar and the buttons are transparent and hot-tracking is enabled. Button text appears under button bitmaps. The separators are shown as bars.
-                List          Creates a flat toolbar with button text to the right of the bitmap. 
+                List          Creates a flat toolbar with button text to the right of the bitmap.
                 ToolTips      Creates a tooltip control that an application can use to display descriptive text for the buttons in the toolbar.
-                Trans         Creates a transparent toolbar. In a transparent toolbar, the toolbar is transparent but the buttons are not. Button text appears under button bitmaps. 
+                Trans         Creates a transparent toolbar. In a transparent toolbar, the toolbar is transparent but the buttons are not. Button text appears under button bitmaps.
                 Wrapable      Creates a toolbar that can have multiple lines of buttons. Toolbar buttons can "wrap" to the next line when the toolbar becomes too narrow to include all buttons on the same line. When the toolbar is wrapped, the break will occur on either the rightmost separator or the rightmost button if there are no separators on the bar. This style must be set to display a vertical toolbar control when the toolbar is part of a vertical rebar control. This style cannot be combined with CCS_VERT.
                 Vertical      Causes the control to be displayed vertically.
                 Adjustable    Enables a toolbar's built-in customization features, which let the user to drag a button to a new position or to remove a button by dragging it off the toolbar. In addition, the user can double-click the toolbar to display the Customize Toolbar dialog box, which enables the user to add, delete, and rearrange toolbar buttons.
                 AltDrag       Allows users to change a toolbar button's position by dragging it while holding down the ALT key. If this style is not specified, the user must hold down the SHIFT key while dragging a button. Note that the CCS_ADJUSTABLE style must be specified to enable toolbar buttons to be dragged.
         Remakrs:
-            To use the tooltips, add the "ToolTips" and "List" options to the control. You must also set the extended style TBSTYLE_EX_MIXEDBUTTONS. See the SetExStyle method.
+            To use the tooltips, add the "ToolTips" and "List" options to the control. You must also set the extended style TBSTYLE_EX_MIXEDBUTTONS using the SetExStyle method.
+            An existing Toolbar control object can be retrieved by means of its handle using the ToolbarFromHwnd function.
     */
-    __New(Gui, Options := "")
+    __New(Gui, Options)
     {
-        if (  Toolbar.Instance.HasKey( this.hGui := IsObject(Gui) ? Gui.hWnd : Gui )  )
-            return Toolbar.Instance[ this.hGui ]
-
-        if ( Type(this.Gui:=GuiFromHwnd(this.hGui)) !== "Gui" )
-            throw Exception("Toolbar class invalid parameter #1.", -1)
-        if ( Type(Options) !== "String" )
-            throw Exception("Toolbar class invalid parameter #2.", -1)
-
-        if ( Toolbar.Instance.Count() == 0 )
-            OnMessage(0x02, "Toolbar_OnMessage")  ; WM_DESTROY.
+        if (Type(this.Gui:=Gui) !== "Gui")
+            throw Exception("IToolbar.New() - Invalid parameter #1.", -1)
 
         ; Toolbar Control Styles (https://docs.microsoft.com/en-us/windows/desktop/controls/toolbar-control-and-button-styles).
         ;               WS_CHILD  | WS_CLIPCHILDREN | CCS_NOPARENTALIGN | CCS_NODIVIDER | CCS_NORESIZE
@@ -74,14 +66,13 @@ class Toolbar
                | (Options ~= "i)\bAdjustable\b"   ? 0x00020                 : 0)    ; CCS_ADJUSTABLE.
 
         Options   := RegExReplace(Options, "i)\b(menu|altdrag|flat|list|tooltips|trans|wrapable|vertical|adjustable)\b")
-        this.Ctrl := this.Gui.AddCustom("+" . style . A_Space . Options . " Class" . Toolbar.ClassName)
-        this.hWnd := this.Ctrl.hWnd
-        Toolbar.Instance[this.hWnd] := this
+        this.Ctrl := this.Gui.AddCustom("+" . style . A_Space . Options . " Class" . IToolbar.ClassName)
+        IToolbar.Instance[this.Ptr:=this.hWnd:=this.Ctrl.hWnd] := this
 
-        ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-buttonstructsize
+        ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-buttonstructsize.
         SendMessage(0x41E, 8+3*A_PtrSize,, this)  ; Specifies the size of the TBBUTTON structure.
 
-        ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setunicodeformat
+        ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setunicodeformat.
         SendMessage(0x2005, TRUE,, this)  ; Sets the Unicode character format flag for the control.
     }
 
@@ -89,66 +80,81 @@ class Toolbar
     ; ===================================================================================================================
     ; PUBLIC METHODS
     ; ===================================================================================================================
+    /*
+        Destroys the control and releases all associated resources.
+        This method is automatically called when the parent window is destroyed.
+    */
     Destroy()
     {
-        Toolbar.Instance.Delete(this.hWnd)
-        DllCall("User32.dll\DestroyWindow", "Ptr", this.hWnd, "Int")
-
-        if ( Toolbar.Instance.Count() == 0 )
-            OnMessage(0x02, "Toolbar_OnMessage", 0)  ; WM_DESTROY.
+        IToolbar.Instance.Delete(this.hWnd)
+        DllCall("User32.dll\DestroyWindow", "Ptr", this)
     }
 
     /*
-        Inserts a button in this toolbar.
+        Inserts a new button in this toolbar.
         Parameters:
             Item:
-                Zero-based index of a button. The message inserts the new button to the left of this button.
+                The zero-based index of a button.
+                The method inserts the new button to the left of this button.
                 A value of -1 inserts the button at the end.
             CommandID:
-                Command identifier associated with the button. This identifier is used in a WM_COMMAND message when the button is chosen.
+                A command identifier that will be associated with the button.
+                This identifier is used in a WM_COMMAND message when the button is clicked.
+                This identifier can be used with some methods to identify a button.
+                This identifier is optional and not necessarily unique.
             Text:
-                The text for the button. A TAB indicates a separator.
-                This parameter can be a pointer to a string. A NULL pointer is valid.
+                A string with the text for the button. A backspace (`b) indicates a separator.
+                This parameter can be zero or a pointer to a null-terminaed string.
             Image:
-                Zero-based index of the button image.
+                The zero-based index of the button image.
                 Set this member to -2 (I_IMAGENONE) to indicate that the button does not have an image. The button layout will not include any space for a bitmap, only text.
-                If the button is a separator, 'Image' determines the width of the separator, in pixels. The default width is 2.
+                If the button is a separator, «Image» determines the width of the separator, in pixels. The default width is 2.
             State:
-                See the SetState method.
+                A combination of values indicating the state of the new Toolbar button.
+                0x01 TBSTATE_CHECKED          Creates a dual-state push button that toggles between the pressed and nonpressed states each time the user clicks it. The button has a different background color when it is in the pressed state.
+                0x02 TBSTATE_PRESSED          The button is being clicked.
+                0x04 TBSTATE_ENABLED          The button accepts user input. A button that does not have this state is grayed.
+                0x08 TBSTATE_HIDDEN           The button is not visible and cannot receive user input.
+                0x10 TBSTATE_INDETERMIN       The button is grayed.
+                0x20 TBSTATE_WRAP             The button is followed by a line break. The button must also have the TBSTATE_ENABLED state.
+                0x40 TBSTATE_ELLIPSES         The button's text is cut off and an ellipsis is displayed.
+                0x80 TBSTATE_MARKED           The button is marked. The interpretation of a marked item is dependent upon the application.
+                Toolbar Button States: https://docs.microsoft.com/en-us/windows/win32/controls/toolbar-button-states.
             Style:
                 Button style. This member can be a combination of the following values. Not all styles can be combined.
-                0x02    BTNS_CHECK                    Creates a dual-state push button that toggles between the pressed and nonpressed states each time the user clicks it.
-                0x06    BTNS_CHECKGROUP               Creates a button that stays pressed until another button in the group is pressed, similar to option buttons (also known as radio buttons).
-                0x08    BTNS_DROPDOWN                 Creates a drop-down style button that can display a list when the button is clicked.
-                0x10    BTNS_AUTOSIZE                 Specifies that the toolbar control should not assign the standard width to the button. Instead, the button's width will be calculated based on the width of the text plus the image of the button.
-                0x20    BTNS_NOPREFIX                 Specifies that the button text will not have an accelerator prefix associated with it.
-                0x40    BTNS_SHOWTEXT                 Specifies that button text should be displayed. All buttons can have text, but only those buttons with the BTNS_SHOWTEXT button style will display it. This button style must be used with the TBSTYLE_LIST style and the TBSTYLE_EX_MIXEDBUTTONS extended style. If you set text for buttons that do not have the BTNS_SHOWTEXT style, the toolbar control will automatically display it as a tooltip when the cursor hovers over the button. This feature allows your application to avoid handling the TBN_GETINFOTIP or TTN_GETDISPINFO notification code for the toolbar.
-                0x80    BTNS_WHOLEDROPDOWN            Specifies that the button will have a drop-down arrow, but not as a separate section.
-                Read more: https://docs.microsoft.com/es-es/windows/desktop/Controls/toolbar-control-and-button-styles.
+                0x02    BTNS_CHECK            Creates a dual-state push button that toggles between the pressed and nonpressed states each time the user clicks it.
+                0x06    BTNS_CHECKGROUP       Creates a button that stays pressed until another button in the group is pressed, similar to option buttons (also known as radio buttons).
+                0x08    BTNS_DROPDOWN         Creates a drop-down style button that can display a list when the button is clicked.
+                0x10    BTNS_AUTOSIZE         Specifies that the toolbar control should not assign the standard width to the button. Instead, the button's width will be calculated based on the width of the text plus the image of the button.
+                0x20    BTNS_NOPREFIX         Specifies that the button text will not have an accelerator prefix associated with it.
+                0x40    BTNS_SHOWTEXT         Specifies that button text should be displayed. All buttons can have text, but only those buttons with the BTNS_SHOWTEXT button style will display it. This button style must be used with the TBSTYLE_LIST style and the TBSTYLE_EX_MIXEDBUTTONS extended style. If you set text for buttons that do not have the BTNS_SHOWTEXT style, the toolbar control will automatically display it as a tooltip when the cursor hovers over the button. This feature allows your application to avoid handling the TBN_GETINFOTIP or TTN_GETDISPINFO notification code for the toolbar.
+                0x80    BTNS_WHOLEDROPDOWN    Specifies that the button will have a drop-down arrow, but not as a separate section.
+                Toolbar Control and Button Styles: https://docs.microsoft.com/es-es/windows/win32/controls/toolbar-control-and-button-styles.
             Data:
-                See the SetData method.
+                Application-defined value associated with the Toolbar button.
+                This value must be any integer number. By default it is zero.
         Return value:
             Returns TRUE if successful, or FALSE otherwise.
     */
-    Add(Item := -1, CommandID := 0, ByRef Text := "`t", Image := -2, State := 4, Style := 0, Data := 0)
+    Add(Item := -1, CommandID := 0, Text := "`b", Image := -2, State := 4, Style := 0, Data := 0)
     {
-        local TBBUTTON
-        VarSetCapacity(TBBUTTON, 8+3*A_PtrSize, 0), Style |= Text=="`t"?1:0
-       ,NumPut(type(Text)="integer"?Text:&Text,NumPut(Data,NumPut(Style,NumPut(State,NumPut(CommandID,NumPut(Style&1?abs(Image):Image,&TBBUTTON,"Int"),"Int"),"UCHar"),"UCHar")-2+A_PtrSize,"Ptr"),"Ptr")
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x443, "Ptr", Item, "Ptr", &TBBUTTON, "Ptr")
+        local TBBUTTON := BufferAlloc(8+3*A_PtrSize)  ; TBBUTTON structure (https://docs.microsoft.com/en-us/windows/win32/api/commctrl/ns-commctrl-tbbutton).
+        Style |= (Text == "`b"), NumPut("Ptr",Data,"Ptr",type(Text)=="Integer"?Text:&Text,,NumPut("Int"
+        ,Style&1?abs(Image):Image,"Int",CommandID,"UCHar",State,"UCHar",Style,TBBUTTON)-2+A_PtrSize)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x443, "Ptr", Item, "Ptr", TBBUTTON, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-insertbutton
 
     /*
-        Deletes a button from the toolbar.
+        Deletes the specified button from the toolbar.
         Parameters:
             Index:
-                Zero-based index of the button to delete.
+                The zero-based index of the button to delete.
         Return value:
             Returns TRUE if successful, or FALSE otherwise.
     */
     Delete(Index)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x416, "Ptr", Index, "Ptr", 0, "Ptr")
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x416, "Ptr", Index, "Ptr", 0, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-deletebutton
 
     /*
@@ -156,292 +162,219 @@ class Toolbar
     */
     DeleteAll()
     {
-        this.SetRedraw( FALSE )
-        loop this.GetCount()
-            this.Delete( 0 )
-        this.SetRedraw( TRUE )
-    } ; SetRedraw + GetCount + Delete
-
-    /*
-        Retrieves a count of the buttons currently in the toolbar.
-        Return value:
-            Returns the count of the buttons.
-    */
-    GetCount()
-    {
-        return SendMessage(0x418,,, this)
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-buttoncount
-
-    /*
-        Retrieves the number of rows of buttons in the toolbar with the TBSTYLE_WRAPABLE style.
-        Return value:
-            Returns the number of rows.
-    */
-    GetRows()
-    {
-        return SendMessage(0x428,,, this)
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getrows
-
-    /*
-        Retrieves the maximum number of text rows that can be displayed on a toolbar button.
-        Return value:
-            Returns a value representing the maximum number of text rows that the control will display for a button.
-    */
-    GetTextRows()
-    {
-        return SendMessage(0x43D,,, this)
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-gettextrows
-
-    /*
-        Sets the maximum number of text rows displayed on a toolbar button.
-        Parameters:
-            Rows:
-                Maximum number of rows of text that can be displayed.
-        Return value:
-            Returns nonzero if successful, or zero otherwise.
-        Remarks:
-            To cause text to wrap, you must set the maximum button width by sending a TB_SETBUTTONWIDTH message. 
-            The text wraps at a word break; line breaks ("\n") in the text are ignored. Text in TBSTYLE_LIST toolbars is always shown on a single line.
-    */
-    SetTextRows(Rows)
-    {
-        return SendMessage(0x43C, Rows,, this)
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setmaxtextrows
-
-    /*
-        Retrieves the index of the hot item in the toolbar.
-        Return value:
-            Returns the index of the hot item, or -1 if no hot item is set.
-        Remarks:
-            Toolbar controls that do not have the TBSTYLE_FLAT style do not have hot items.
-    */
-    GetHotItem()
-    {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x447, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-gethotitem
-
-    /*
-        Sets the hot item in a toolbar.
-        Parameters:
-            Index:
-                Index of the item that will be made hot. If this value is -1, none of the items will be hot.
-            Flags:
-                Flags that indicate why the hot item has changed. This can be one or more of the following values:
-                0x000 HICF_OTHER                  The change in the hot item resulted from an event that could not be determined. This will most often be due to a change in focus or the TB_SETHOTITEM message.
-                0x001 HICF_MOUSE                  The change in the hot item resulted from a mouse event.
-                0x002 HICF_ARROWKEYS              The change in the hot item was caused by an arrow key.
-                0x004 HICF_ACCELERATOR            The change in the hot item was caused by a shortcut key.
-                0x008 HICF_DUPACCEL               Modifies HICF_ACCELERATOR. If this flag is set, more than one item has the same shortcut key character.
-                0x010 HICF_ENTERING               Modifies the other reason flags. If this flag is set, there is no previous hot item and idOld does not contain valid information.
-                0x020 HICF_LEAVING                Modifies the other reason flags. If this flag is set, there is no new hot item and idNew does not contain valid information.
-                0x040 HICF_RESELECT               The change in the hot item resulted from the user entering the shortcut key for an item that was already hot.
-                0x080 HICF_LMOUSE                 The change in the hot item resulted from a left-click mouse event.
-                0x100 HICF_TOGGLEDROPDOWN         Causes the button to switch states.
-                Read more: https://docs.microsoft.com/en-us/windows/desktop/api/Commctrl/ns-commctrl-tagnmtbhotitem.             
-        Return value:
-            Returns the index of the previous hot item, or -1 if there was no hot item.
-        Remarks:
-            The behavior of this message is not defined for toolbars that do not have the TBSTYLE_FLAT style.
-    */
-    SetHotItem(Index, Flags := 0)
-    {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x45E, "Ptr", Index, "Ptr", Flags, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-sethotitem2
-
-    /*
-        Gets the length, in characters, of the text of the specified button.
-        Parameters:
-            CommandID:
-                Command identifier of the button whose text length is to be retrieved.
-        Return value:
-            Returns the number of characters. If unsuccessful, the return value is -1.
-    */
-    GetTextLength(CommandID)
-    {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x44B, "Ptr", CommandID, "Ptr", 0, "Ptr")
+        this.SetRedraw(FALSE)
+        while this.Delete(0)
+            continue
+        this.SetRedraw(TRUE)
     }
 
     /*
-        Retrieves the display text of a button on the toolbar.
+        Retrieves the display text of the specified button from the toolbar.
         Parameters:
-            CommandID:
-                Command identifier of the button whose text is to be retrieved.
+            Index:
+                The zero-based index of the button whose text is to be changed.
         Return value:
-            Returns the button's text. The returned string corresponds to the text that is currently displayed by the button.
-            An empty string indicates that an empty string has been assigned to the button's text or that it has no text assigned to it (null pointer).
+            Returns a string with the button text that is currently displayed by the retrieved.
+            An empty string indicates one of the following cases:
+                1) The display text of the button is an empty string.
+                2) The button has no display text assigned to it (null pointer).
+                3) The index of the specified button is invalid.
     */
-    GetText(CommandID)
+    GetButtonText(Index)
     {
-        ; We avoid calculating the exact size of the button text for performance reasons.
-        ; Also, i think that 512 characters UTF-16 (1024 bytes) is more than enough.
-        local Buffer, Length := VarSetCapacity(Buffer, 1024)
-        Length := DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x44B, "Ptr", CommandID, "Ptr", &Buffer, "Ptr")
-        return Length > 0 ? StrGet(&Buffer,Length,"UTF-16") : ""
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getbuttontext
+        local Buffer       := BufferAlloc(1024)                ; Character buffer (Up to 512 characters).
+        local TBBUTTONINFO := BufferAlloc(A_PtrSize==4?32:48)  ; TBBUTTONINFOW structure.
+        NumPut("UPtr", Buffer.Ptr, "Int", Buffer.Size//2, NumPut("UInt",TBBUTTONINFO.Size,"UInt",0x80000002,TBBUTTONINFO)+8+2*A_PtrSize)
+       ,NumPut("UShort", 0x0000, Buffer)  ; Write a null character at the beginning, to return an empty string in case of error.
+       ,DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43F, "Ptr", Index, "Ptr", TBBUTTONINFO, "Ptr")
+        return StrGet(Buffer)
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-getbuttoninfo
 
     /*
-        Assigns new text to a button (this method will permanently override the text from the string pool).
+        Changes the display text of the specified button from the toolbar.
         Parameters:
-            CommandID:
-                Command identifier of the button whose text is to be set.
+            Index:
+                The zero-based index of the button whose text is to be changed.
             Text:
-                String that contains the button text.
-                This parameter can be a pointer to a string. A NULL pointer is valid.
+                A string that contains the new text for the button.
+                This parameter can be zero or a pointer to a null-terminated string.
         Return value:
             Returns nonzero if successful, or zero otherwise.
     */
-    SetText(CommandID, ByRef Text)
+    SetButtonText(Index, Text)
     {
-        local TBBUTTONINFO, Size
-        VarSetCapacity(TBBUTTONINFO, Size:=A_PtrSize==4?32:48)
-       ,NumPut(2, NumPut(Size,&TBBUTTONINFO,"UInt"), "UInt")
-       ,NumPut(type(Text)="integer"?Text:&Text, &TBBUTTONINFO+16+2*A_PtrSize, "Ptr")
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x440, "Ptr", CommandID, "Ptr", &TBBUTTONINFO, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setbuttoninfo
+        local TBBUTTONINFO := BufferAlloc(A_PtrSize==4?32:48)  ; TBBUTTONINFOW structure.
+        NumPut("UPtr", type(Text)=="Integer"?Text:&Text,NumPut("UInt",TBBUTTONINFO.Size,"UInt",0x80000002,TBBUTTONINFO)+8+2*A_PtrSize)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x440, "Ptr", Index, "Ptr", TBBUTTONINFO, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-setbuttoninfo
 
     /*
-        Retrieves information about the state of the specified button in the toolbar, such as whether it is enabled, pressed, or checked.
+        Retrieves the state of the specified button from the toolbar, such as whether it is enabled, pressed, or checked.
         Parameters:
-            CommandID:
-                Command identifier of the button for which to retrieve information.
+            Index:
+                The zero-based index of the button whose state is to be retrieved.
         Return value:
             Returns the button state information if successful, or -1 otherwise.
-            The button state information can be a combination of the values listed in Toolbar Button States.
-            See the SetState method.
     */
-    GetState(CommandID)
+    GetButtonState(Index)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x412, "Ptr", CommandID, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getstate
+        local TBBUTTONINFO := BufferAlloc(A_PtrSize==4?32:48)  ; TBBUTTONINFOW structure.
+        NumPut("UInt", TBBUTTONINFO.Size, "UInt", 0x80000004, TBBUTTONINFO)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43F, "Ptr", Index, "Ptr", TBBUTTONINFO, "Ptr") !== -1
+             ? NumGet(TBBUTTONINFO, 16, "UChar")  ; Ok.
+             : -1                                 ; Error.
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-getbuttoninfo
 
     /*
-        Sets the state for the specified button in the toolbar.
+        Changes the state of the specified button form the toolbar.
         Parameters:
-            CommandID:
-                Command identifier of the button.
+            Index:
+                The zero-based index of the button whose state is to be changed.
             State:
-                A combination of values listed in Toolbar Button States.
-                0x01 TBSTATE_CHECKED               Creates a dual-state push button that toggles between the pressed and nonpressed states each time the user clicks it. The button has a different background color when it is in the pressed state.
-                0x02 TBSTATE_PRESSED               The button is being clicked.
-                0x04 TBSTATE_ENABLED               The button accepts user input. A button that does not have this state is grayed.
-                0x08 TBSTATE_HIDDEN                The button is not visible and cannot receive user input.
-                0x10 TBSTATE_INDETERMINATE         The button is grayed.
-                0x20 TBSTATE_WRAP                  The button is followed by a line break. The button must also have the TBSTATE_ENABLED state.
-                0x40 TBSTATE_ELLIPSES              The button's text is cut off and an ellipsis is displayed.
-                0x80 TBSTATE_MARKED                The button is marked. The interpretation of a marked item is dependent upon the application.
+                A combination of values listed in Toolbar Button States. See the Add method.
             Mode:
-                Sets the mode in which the state is to be set. By default it is replaced.
+                Specifies the mode in which the state is to be set. By default it is replaced.
                 -1      Toggles the specified state.
                  1      Adds the specified state.
                  2      Removes the specified state.
         Return value:
             Returns TRUE if successful, or FALSE otherwise.
-        Toolbar Button States:
-            https://msdn.microsoft.com/en-us/library/Bb760437(v=VS.85).aspx.
     */
-    SetState(CommandID, State, Mode := 0)
+    SetButtonState(Index, State, Mode := 0)
     {
-        if ( Mode )
-            local st := DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x412, "Ptr", CommandID, "Ptr", 0, "Ptr")
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x411, "Ptr", CommandID, "Ptr"
-             , Mode==-1?st&State?st&~State:st|State:Mode==1?st|State:Mode==2?st&~State:State, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setstate
+        local TBBUTTONINFO := BufferAlloc(A_PtrSize==4?32:48)  ; TBBUTTONINFOW structure.
+        local s            := Mode ? this.GetButtonState(Index) : 0
+        NumPut("UChar", Mode==-1?s&State?s&~State:s|State:Mode==1?s|State:Mode==2?s&~State:State
+             , NumPut("UInt",TBBUTTONINFO.Size,"UInt",0x80000004,TBBUTTONINFO)+8)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x440, "Ptr", Index, "Ptr", TBBUTTONINFO, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-setbuttoninfo
 
     /*
-        Gets the application-defined value associated with a toolbar button.
+        Retrieves the Style flags of the specified button from the toolbar.
         Parameters:
-            CommandID:
-                Command identifier of the button.
+            Index:
+                The zero-based index of the button whose style is to be retrieved.
         Return value:
-            Returns the application-defined UPTR value associated with the button.
-            If unsuccessful, the return value is an empty string.
+            Returns the button style flags if successful, or -1 otherwise.
     */
-    GetData(CommandID)
+    GetButtonStyle(Index)
     {
-        local TBBUTTONINFO, Size
-        VarSetCapacity(TBBUTTONINFO, Size:=A_PtrSize==4?32:48)
-       ,NumPut(0x10,NumPut(Size,&TBBUTTONINFO,"UInt"),"UInt")
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x43F, "Ptr", CommandID, "Ptr", &TBBUTTONINFO, "Ptr") == -1
-             ? ""                                          ; ERROR.
-             : NumGet(&TBBUTTONINFO+16+A_PtrSize, "UPtr")  ; OK.
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getbuttoninfo
+        local TBBUTTONINFO := BufferAlloc(A_PtrSize==4?32:48)  ; TBBUTTONINFOW structure.
+        NumPut("UInt", TBBUTTONINFO.Size, "UInt", 0x80000008, TBBUTTONINFO)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43F, "Ptr", Index, "Ptr", TBBUTTONINFO, "Ptr") !== -1
+             ? NumGet(TBBUTTONINFO, 17, "UChar")  ; Ok.
+             : -1                                 ; Error.
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-getbuttoninfo
 
     /*
-        Sets the application-defined value associated with a toolbar button.
+        Retrieves the application-defined value associated with the specified button from the toolbar.
         Parameters:
-            CommandID:
-                Command identifier of the button.
+            Index:
+                The zero-based index of the button whose application-defined value is to be retrieved.
+        Return value:
+            Returns the application-defined value associated with the button (integer number).
+            If the method fails, the return value is an empty string.
+    */
+    GetButtonData(Index)
+    {
+        local TBBUTTONINFO := BufferAlloc(A_PtrSize==4?32:48)  ; TBBUTTONINFOW structure.
+        NumPut("UInt", TBBUTTONINFO.Size, "UInt", 0x80000010, TBBUTTONINFO)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43F, "Ptr", Index, "Ptr", TBBUTTONINFO, "Ptr") !== -1
+             ? NumGet(TBBUTTONINFO, 16+A_PtrSize, "UPtr")  ; Ok.
+             : ""                                          ; Error.
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-getbuttoninfo
+
+    /*
+        Changes the application-defined value associated with the specified button from the toolbar.
+        Parameters:
+            Index:
+                The zero-based index of the button whose application-defined value is to be changed.
             Data:
-                Application-defined UPTR value associated with the button.
+                Application-defined value associated with the button (integer number).
         Return value:
             Returns nonzero if successful, or zero otherwise.
     */
-    SetData(CommandID, Data)
+    SetButtonData(Index, Data)
     {
-        local TBBUTTONINFO, Size
-        VarSetCapacity(TBBUTTONINFO, Size:=A_PtrSize==4?32:48)
-       ,NumPut(Data, NumPut(0x10,NumPut(Size,&TBBUTTONINFO,"UInt"),"UInt")+8+A_PtrSize, "Ptr")
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x440, "Ptr", CommandID, "Ptr", &TBBUTTONINFO, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setbuttoninfo
+        local TBBUTTONINFO := BufferAlloc(A_PtrSize==4?32:48)  ; TBBUTTONINFOW structure.
+        NumPut("UPtr", Data, NumPut("UInt",TBBUTTONINFO.Size,"UInt",0x80000010,TBBUTTONINFO)+8+A_PtrSize)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x440, "Ptr", Index, "Ptr", TBBUTTONINFO, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-setbuttoninfo
 
     /*
-        Gets the image index of a toolbar button.
+        Retrieves the image index of the specified button from the toolbar.
         Parameters:
-            CommandID:
-                Command identifier of the button.
+            Index:
+                The zero-based index of the button whose image index is to be retrieved.
         Return value:
             Returns the image index of the button if successful, or an empty string otherwise.
-            A value of -2 (I_IMAGENONE) indicates that the button does not have an image. 
+            A value of -2 (I_IMAGENONE) indicates that the button does not have an image.
     */
-    GetImage(CommandID)
+    GetButtonImage(Index)
     {
-        local TBBUTTONINFO, Size
-        VarSetCapacity(TBBUTTONINFO, Size:=A_PtrSize==4?32:48)
-       ,NumPut(1,NumPut(Size,&TBBUTTONINFO,"UInt"),"UInt")
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x43F, "Ptr", CommandID, "Ptr", &TBBUTTONINFO, "Ptr") == -1
-             ? ""                               ; ERROR.
-             : NumGet(&TBBUTTONINFO+12, "Int")  ; OK.
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getbuttoninfo
+        local TBBUTTONINFO := BufferAlloc(A_PtrSize==4?32:48)  ; TBBUTTONINFOW structure.
+        NumPut("UInt", TBBUTTONINFO.Size, "UInt", 0x80000001, TBBUTTONINFO)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43F, "Ptr", Index, "Ptr", TBBUTTONINFO, "Ptr") !== -1
+             ? NumGet(TBBUTTONINFO, 12, "Int")  ; OK.
+             : ""                               ; Error.
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-getbuttoninfo
 
     /*
-        Sets the image index of a toolbar button.
+        Changes the image index of the specified button from the toolbar.
         Parameters:
-            CommandID:
-                Command identifier of the button.
+            Index:
+                The zero-based index of the button whose image index is to be changed.
             Image:
-                The image index of the button.
+                The new image index of the button.
                 A value of -2 (I_IMAGENONE) indicates that the button does not have an image. The button layout will not include any space for a bitmap, only text.
         Return value:
             Returns nonzero if successful, or zero otherwise.
     */
-    SetImage(CommandID, Image)
+    SetButtonImage(Index, Image)
     {
-        local TBBUTTONINFO, Size
-        VarSetCapacity(TBBUTTONINFO, Size:=A_PtrSize==4?32:48)
-       ,NumPut(Image, NumPut(1,NumPut(Size,&TBBUTTONINFO,"UInt"),"UInt")+4, "Int")
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x440, "Ptr", CommandID, "Ptr", &TBBUTTONINFO, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setbuttoninfo
+        local TBBUTTONINFO := BufferAlloc(A_PtrSize==4?32:48)  ; TBBUTTONINFOW structure.
+        NumPut("Int", Image, NumPut("UInt",TBBUTTONINFO.Size,"UInt",0x80000001,TBBUTTONINFO)+4)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x440, "Ptr", Index, "Ptr", TBBUTTONINFO, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-setbuttoninfo
 
     /*
         Moves a button from one index to another.
         Parameters:
-            From:
-                Zero-based index of the button to be moved.
-            To:
-                Zero-based index where the button will be moved.
+            FromIndex:
+                The zero-based index of the button to be moved.
+            ToIndex:
+                The zero-based index where the button will be moved.
         Return value:
             Returns nonzero if successful, or zero otherwise.
     */
-    MoveButton(From, To)
+    MoveButton(FromIndex, ToIndex)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x452, "Ptr", From, "Ptr", To, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-movebutton
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x452, "Ptr", FromIndex, "Ptr", ToIndex, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-movebutton
 
     /*
-        Sets the command identifier of a toolbar button.
+        Retrieves the command identifier of the specified button from the toolbar.
         Parameters:
             Index:
-                Zero-based index of the button whose command identifier is to be set.
+                The zero-based index of the button whose command identifier is to be retrieved.
+        Return value:
+            If the method succeeds, the return value is the command identifier associated with the button.
+            If the method fails, the return value is an empty string.
+    */
+    GetCommandID(Index)
+    {
+        local TBBUTTONINFO := BufferAlloc(A_PtrSize==4?32:48)  ; TBBUTTONINFOW structure.
+        NumPut("UInt", TBBUTTONINFO.Size, "UInt", 0x80000020, TBBUTTONINFO)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43F, "Ptr", Index, "Ptr", TBBUTTONINFO, "Ptr") !== -1
+             ? NumGet(TBBUTTONINFO, 8, "Int")  ; Ok.
+             : 0                               ; Error.
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-getbuttoninfo
+
+    /*
+        Changes the command identifier of the specified button from the toolbar.
+        Parameters:
+            Index:
+                The zero-based index of the button whose command identifier is to be changed.
             CommandID:
                 The new command identifier for this button.
         Return value:
@@ -449,8 +382,21 @@ class Toolbar
     */
     SetCommandID(Index, CommandID)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x42A, "Ptr", Index, "Ptr", CommandID, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setcmdid
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x42A, "Ptr", Index, "Ptr", CommandID, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-setcmdid
+
+    /*
+        Retrieves the zero-based index for the button associated with the specified command identifier.
+        Parameters:
+            CommandID:
+                Command identifier associated with the button.
+        Return value:
+            Returns the zero-based index for the button or -1 if the specified command identifier is invalid.
+    */
+    CommandToIndex(CommandID)
+    {
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x419, "Ptr", CommandID, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-commandtoindex
 
     /*
         Sets the minimum and maximum button widths in the toolbar control.
@@ -465,50 +411,51 @@ class Toolbar
     SetButtonWidth(Min, Max)
     {
         return SendMessage(0x43B,, (Min&0xFFFF)|((Max&0xFFFF)<<16), this)
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setbuttonwidth
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-setbuttonwidth
 
     /*
         Retrieves the bounding rectangle of a button in the toolbar.
         Parameters:
             Index:
-                Zero-based index of the button for which to retrieve information.
+                The zero-based index of the button for which to retrieve information.
         Return value:
-            Returns an object with the keys L(eft), T(op), R(ight) and B(ottom).
-            Returns zero if an error occurred
+            If the method succeeds, the return value is an object with the properties L(eft), T(op), R(ight) and B(ottom).
+            If the method fails, the return value is zero.
         Remarks:
             This method does not retrieve the bounding rectangle for buttons whose state is set to the TBSTATE_HIDDEN value.
     */
     GetItemRect(Index)
     {
-        local RECT
-        VarSetCapacity(RECT, 16)
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x41D, "Ptr", Index, "Ptr", &RECT, "Ptr")
-             ? { L:NumGet(&RECT,"Int") , T:NumGet(&RECT+4,"Int") , R:NumGet(&RECT+8,"Int") , B:NumGet(&RECT+12,"Int") }  ; OK.
-             : 0                                                                                                         ; ERROR.
+        local RECT := BufferAlloc(16)  ; RECT structure (https://docs.microsoft.com/en-us/previous-versions/dd162897(v=vs.85)).
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x41D, "Ptr", Index, "Ptr", RECT, "Ptr")
+             ? {L:NumGet(RECT,"Int") , T:NumGet(RECT,4,"Int") , R:NumGet(RECT,8,"Int") , B:NumGet(RECT,12,"Int")}  ; OK.
+             : 0                                                                                                   ; ERROR.
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getitemrect
 
     /*
         Retrieves the current width and height of toolbar buttons, in pixels.
         Return value:
-            Returns an object with the keys 'W' and 'H'.
+            The return value is an object with the properties W(idth) and H(eight).
     */
     GetButtonSize()
     {
-        local size := SendMessage(0x43A,,, this)
+        local size := DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43A, "Ptr", 0, "Ptr", 0, "Ptr")
         return { W:size&0xFFFF , H:(size>>16)&0xFFFF }
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getbuttonsize
 
     /*
-        Sets the size of buttons on a toolbar.
+        Sets the size of buttons on the toolbar.
         Parameters:
-            W / H:
-                Specifies the width and height, in pixels, of the buttons.
+            Width:
+                Specifies the width, in pixels, of the buttons.
+            Height:
+                Specifies the height, in pixels, of the buttons.
         Return value:
-            Returns TRUE if successful, or FALSE otherwise.
+            Returns nonzero if successful, or zero otherwise.
     */
-    SetButtonSize(W, H)
+    SetButtonSize(Width, Height)
     {
-        return SendMessage(0x41F,, (W&0xFFFF)|((H&0xFFFF)<<16), this)
+        return SendMessage(0x41F,, (Width&0xFFFF)|((Height&0xFFFF)<<16), this)
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setbuttonsize
 
     /*
@@ -516,10 +463,12 @@ class Toolbar
         Parameters:
             Value:
                 The gap, in pixels, between buttons on the toolbar.
+        Remarks:
+            Receipt of this message triggers a repaint of the toolbar, if the toolbar is currently visible.
     */
     SetListGap(Value)
     {
-        SendMessage(0x460, Value,, this)
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x460, "Ptr", Value, "Ptr", 0, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setlistgap
 
     /*
@@ -532,52 +481,22 @@ class Toolbar
     */
     SetIndent(Value)
     {
-        return SendMessage(0x42F, Value,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x42F, "Ptr", Value, "Ptr", 0, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setindent
 
     /*
         Sets the padding for a toolbar control.
         Parameters:
             Horizontal / vertical:
-                Specifies the horizontal and the vertical padding, in pixels, respectively.
+                Specifies the horizontal and the vertical padding, in pixels.
         Return value:
-            Returns an object with the keys 'H' and 'V' that contains the previous horizontal and vertical pading, in pixels, respectively.
+            Returns an object with the properties H(orizontal) and V(ertical) that contains the previous horizontal and vertical pading, in pixels.
     */
     SetPadding(Horizontal, Vertical)
     {
         local r := SendMessage(0x457,, (Horizontal&0xFFFF)|((Vertical&0xFFFF)<<16), this)
         return { H:r&0xFFFF , V:(r>>16)&0xFFFF }
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setpadding
-
-    /*
-        Retrieves the zero-based index for the button associated with the specified command identifier.
-        Parameters:
-            CommandID:
-                Command identifier associated with the button.
-        Return value:
-            Returns the zero-based index for the button or -1 if the specified command identifier is invalid.
-    */
-    CommandToIndex(CommandID)
-    {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x419, "Ptr", CommandID, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-commandtoindex
-
-    /*
-        Retrieves the command identifier of the specified zero-based button index.
-        Parameters:
-            Index:
-                The zero-based button index.
-        Return value:
-            Returns the button's associated command identifier, or an empty string if the specified button index is invalid.
-    */
-    IndexToCommand(Index)
-    {
-        local TBBUTTON
-        VarSetCapacity(TBBUTTON, 8+3*A_PtrSize)
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x417, "Ptr", Index, "Ptr", &TBBUTTON, "Ptr")
-             ? NumGet(&TBBUTTON+4,"Int")  ; OK.
-             : ""                         ; ERROR.
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getbutton
 
     /*
         Determines where a point lies in the toolbar control.
@@ -592,7 +511,7 @@ class Toolbar
     HitTest(X, Y)
     {
         local POINT := (X & 0xFFFFFFFF) | ((Y & 0xFFFFFFFF) << 32)
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x445, "Ptr", 0, "Ptr", &POINT, "Ptr")
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x445, "Ptr", 0, "Ptr", POINT, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-hittest
 
     /*
@@ -605,7 +524,7 @@ class Toolbar
     */
     IsButtonChecked(CommandID)
     {
-        return SendMessage(0x40A, CommandID,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40A, "Ptr", CommandID, "Ptr", 0, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-isbuttonchecked
 
     /*
@@ -624,7 +543,7 @@ class Toolbar
     */
     CheckButton(CommandID, Value)
     {
-        return SendMessage(0x402, CommandID, Value, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x402, "Ptr", CommandID, "Ptr", Value, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-checkbutton
 
     /*
@@ -637,7 +556,7 @@ class Toolbar
     */
     IsButtonEnabled(CommandID)
     {
-        return SendMessage(0x409, CommandID,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x409, "Ptr", CommandID, "Ptr", 0, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-isbuttonenabled
 
     /*
@@ -656,7 +575,7 @@ class Toolbar
     */
     EnableButton(CommandID, Value)
     {
-        return SendMessage(0x401, CommandID, Value, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x401, "Ptr", CommandID, "Ptr", Value, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-enablebutton
 
     /*
@@ -669,7 +588,7 @@ class Toolbar
     */
     IsButtonVisible(CommandID)
     {
-        return !SendMessage(0x40C, CommandID,, this) 
+        return !DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40C, "Ptr", CommandID, "Ptr", 0, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-isbuttonhidden
 
     /*
@@ -686,7 +605,7 @@ class Toolbar
     */
     ShowButton(CommandID, Value)
     {
-        return SendMessage(0x404, CommandID, !Value, this)  
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x404, "Ptr", CommandID, "Ptr", !Value, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-hidebutton
 
     /*
@@ -699,7 +618,7 @@ class Toolbar
     */
     IsButtonHighlighted(CommandID)
     {
-        return SendMessage(0x40E, CommandID,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40E, "Ptr", CommandID, "Ptr", 0, "Ptr")
     }
 
     /*
@@ -716,9 +635,9 @@ class Toolbar
     */
     HighlightButton(CommandID, Value)
     {
-        return SendMessage(0x406, CommandID, Value, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x406, "Ptr", CommandID, "Ptr", Value, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-markbutton
-    
+
     /*
         Determines whether the specified button in the toolbar is indeterminate.
         Parameters:
@@ -729,7 +648,7 @@ class Toolbar
     */
     IsButtonIndeterminate(CommandID)
     {
-        return SendMessage(0x40D, CommandID,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40D, "Ptr", CommandID, "Ptr", 0, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-isbuttonindeterminate
 
     /*
@@ -742,7 +661,7 @@ class Toolbar
     */
     IsButtonPressed(CommandID)
     {
-        return SendMessage(0x40B, CommandID,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40B, "Ptr", CommandID, "Ptr", 0, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-isbuttonpressed
 
     /*
@@ -759,7 +678,7 @@ class Toolbar
     */
     PressButton(CommandID, Value)
     {
-        return SendMessage(0x403, CommandID, Value, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x403, "Ptr", CommandID, "Ptr", Value, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-pressbutton
 
     /*
@@ -769,7 +688,7 @@ class Toolbar
     */
     AutoSize()
     {
-        SendMessage(0x421,,, this)
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x421, "Ptr", 0, "Ptr", 0, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-autosize
 
     /*
@@ -782,7 +701,7 @@ class Toolbar
     */
     Customize()
     {
-        SendMessage(0x41B,,, this)
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x41B, "Ptr", 0, "Ptr", 0, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-customize
 
     /*
@@ -792,32 +711,34 @@ class Toolbar
                 Indicates whether to retrieve the ideal height or width of the toolbar.
                 0           Retrieve the ideal width.
                 1           Retrieve the ideal height.
+                2           Retrieve the height if the Toolbar control is vertical, otherwise retrieve the width.
         Return value:
             Receives the height or width at which all buttons would be displayed.
             If an error occurs, the return value is -1.
         Remarks:
             The rectangle dimensions may correspond to viewport extents, window extents, text extents, bitmap dimensions, or the aspect-ratio filter for some extended functions.
     */
-    GetIdealSize(Value)
+    GetIdealSize(Value := 2)
     {
-        local size := 0  ; https://docs.microsoft.com/en-us/previous-versions//dd145106(v=vs.85).
-        return SendMessage(0x463, Value, &size, this)
-            ? Value ? (size>>32)&0xFFFFFFFF : size&0xFFFFFFFF  ; OK.
-            : -1                                               ; ERROR.
+        Value := Value == 2 ? this.GetStyle() & 0x00080 ? 1 : 0 : Value
+        local SIZE := BufferAlloc(8)  ; SIZE structure.
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x463, "Ptr", Value, "Ptr", SIZE, "Ptr")
+            ? Value ? NumGet(SIZE,4,"Int") : NumGet(SIZE,"Int")  ; OK.
+            : -1                                                 ; ERROR.
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getidealsize
 
     /*
         Retrieves the total size of all of the visible buttons and separators in the toolbar.
         Return value:
-            Returns an object with the keys W(idth) and H(eight).
-            If unsuccessful, the return value is zero.
+            If the method succeeds, the return value is an object with the properties W(idth) and H(eight).
+            If the method fails, the return value is zero.
     */
     GetMaxSize()
     {
-        local size := 0
-        return SendMessage(0x453,, &size, this)
-             ? { W:NumGet(&size,"Int") , H:NumGet(&size+4,"Int") }  ; OK.
-             : 0                                                    ; FALSE.
+        local SIZE := BufferAlloc(8)  ; SIZE structure (https://docs.microsoft.com/en-us/previous-versions/dd145106(v=vs.85)).
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x453, "Ptr", 0, "Ptr", SIZE, "Ptr")
+             ? { W:NumGet(SIZE,"Int") , H:NumGet(SIZE,4,"Int") }  ; OK.
+             : 0                                                  ; FALSE.
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getmaxsize
 
     /*
@@ -827,36 +748,36 @@ class Toolbar
     */
     GetImageListCount()
     {
-        return SendMessage(0x462,,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x462, "Ptr", 0, "Ptr", 0, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getimagelistcount
 
     /*
         Gets the image list that the toolbar control uses to display buttons in their default state.
         A toolbar control uses this image list to display buttons when they are not hot or disabled.
         Return value:
-            Returns the handle to the image list, or NULL if no image list is set.
+            Returns the handle to the image list, or zero if no image list is set.
     */
     GetImageList()
     {
-        return SendMessage(0x431,,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x431, "Ptr", 0, "Ptr", 0, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getimagelist
 
     /*
         Sets the image list that the toolbar uses to display buttons that are in their default state.
         Parameters:
             ImageList:
-                Handle to the image list to set. If this parameter is NULL, no images are displayed in the buttons.
+                Handle to the image list to set. If this parameter is zero, no images are displayed in the buttons.
             Index:
                 The index of the list. If you use only one image list, set 'Index' to zero. See Remarks for details on using multiple image lists.
         Return value:
-            Returns the handle to the image list previously used to display buttons in their default state, or NULL if no image list was previously set.
+            Returns the handle to the image list previously used to display buttons in their default state, or zero if no image list was previously set.
         Remarks:
             Your application is responsible for freeing the image list after the toolbar is destroyed.
             Read more: https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setimagelist.
     */
     SetImageList(ImageList, Index := 0)
     {
-        return SendMessage(0x430, Index, ImageList, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x430, "Ptr", Index, "Ptr", ImageList, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setimagelist
 
     /*
@@ -864,7 +785,7 @@ class Toolbar
     */
     GetPressedImageList()
     {
-        return SendMessage(0x469,,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x469, "Ptr", 0, "Ptr", 0, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getpressedimagelist
 
     /*
@@ -872,7 +793,7 @@ class Toolbar
     */
     SetPressedImageList(ImageList, Index := 0)
     {
-        return SendMessage(0x468, Index, ImageList, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x468, "Ptr", Index, "Ptr", ImageList, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setpressedimagelist
 
     /*
@@ -880,7 +801,7 @@ class Toolbar
     */
     GetHotImageList()
     {
-        return SendMessage(0x435,,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x435, "Ptr", 0, "Ptr", 0, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-gethotimagelist
 
     /*
@@ -888,7 +809,7 @@ class Toolbar
     */
     SetHotImageList(ImageList, Index := 0)
     {
-        return SendMessage(0x434, Index, ImageList, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x434, "Ptr", Index, "Ptr", ImageList, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-sethotimagelist
 
     /*
@@ -896,7 +817,7 @@ class Toolbar
     */
     GetDisabledImageList()
     {
-        return SendMessage(0x437,,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x437, "Ptr", 0, "Ptr", 0, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getdisabledimagelist
 
     /*
@@ -904,7 +825,7 @@ class Toolbar
     */
     SetDisabledImageList(ImageList, Index := 0)
     {
-        return SendMessage(0x436, Index, ImageList, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x436, "Ptr", Index, "Ptr", ImageList, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setdisabledimagelist
 
     /*
@@ -944,7 +865,7 @@ class Toolbar
     */
     GetStyle()
     {
-        return SendMessage(0x439,,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x439, "Ptr", 0, "Ptr", 0, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getstyle
 
     /*
@@ -964,7 +885,8 @@ class Toolbar
     {
         local cstyle := this.GetStyle()
         Style := Mode == 1 ? cstyle|Style : Mode == 2 ? cstyle&~Style : Mode == -1 ? cstyle&Style?cstyle&~Style:cstyle|Style : Style
-        return 0*SendMessage(0x438,,Style,this) + cstyle
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x438, "Ptr", 0, "Ptr", Style, "Ptr")
+        return cstyle
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setstyle
 
     /*
@@ -976,7 +898,7 @@ class Toolbar
     */
     GetExStyle()
     {
-        return SendMessage(0x455,,, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x455, "Ptr", 0, "Ptr", 0, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getextendedstyle
 
     /*
@@ -993,7 +915,7 @@ class Toolbar
                                                       The TBSTYLE_LIST style must also be set (Specify 'List' in the options when creating the control).
                 0x10  TBSTYLE_EX_HIDECLIPPEDBUTTONS   This style hides partially clipped buttons. The most common use of this style is for toolbars that are part of a rebar control.
                                                       If an adjacent band covers part of a button, the button will not be displayed.
-                                                      However, if the rebar band has the RBBS_USECHEVRON style, the button will be displayed on the chevron's dropdown menu. 
+                                                      However, if the rebar band has the RBBS_USECHEVRON style, the button will be displayed on the chevron's dropdown menu.
                 0x80  TBSTYLE_EX_DOUBLEBUFFER         This style requires the toolbar to be double buffered. Double buffering is a mechanism that detects when the toolbar has changed.
             Mode:
                 See the SetStyle method.
@@ -1004,36 +926,37 @@ class Toolbar
     {
         local cstyle := this.GetExStyle()
         ExStyle := Mode == 1 ? cstyle|ExStyle : Mode == 2 ? cstyle&~ExStyle : Mode == -1 ? cstyle&ExStyle?cstyle&~ExStyle:cstyle|ExStyle : ExStyle
-        return SendMessage(0x454,, ExStyle, this)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x454, "Ptr", 0, "Ptr", ExStyle, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setextendedstyle
 
     /*
         Retrieves the current insertion mark for the toolbar.
         Return value:
-            Returns an object with the keys 'Index' and 'Flags'.
-            See the SetInsertMark method for the description of these keys.
+            Returns an object with the properties 'Index' and 'Flags'.
+            See the SetInsertMark method for the description of these properties.
     */
     GetInsertMark()
     {
-        local TBINSERTMARK := 0
-        SendMessage(0x44F,, &TBINSERTMARK, this)
-        return { Index:NumGet(&TBINSERTMARK,"Int") , Flags:NumGet(&TBINSERTMARK+4,"Int") }
+        local TBINSERTMARK := BufferAlloc(8)  ; TBINSERTMARK structure (https://docs.microsoft.com/en-us/windows/win32/api/commctrl/ns-commctrl-tbinsertmark).
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x44F, "Ptr", 0, "Ptr", TBINSERTMARK, "Ptr")
+        return { Index:NumGet(TBINSERTMARK,"Int") , Flags:NumGet(TBINSERTMARK,4,"Int") }
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getinsertmark
 
     /*
         Sets the current insertion mark for the toolbar.
         Parameters:
             Index:
-                Zero-based index of the insertion mark. If this parameter is -1, there is no insertion mark.
+                The zero-based index of the insertion mark. If this parameter is -1, there is no insertion mark.
             Flags:
                 Defines where the insertion mark is in relation to 'Index'. This can be one of the following values:
-                0           The insertion mark is to the left of the specified button.
+                0           The insertion mark is to the left of the specified button. This is the default value.
                 1           The insertion mark is to the right of the specified button.
     */
     SetInsertMark(Index, Flags := 0)
     {
-        local TBINSERTMARK := 0
-        SendMessage(0x450,, NumPut(Flags,NumPut(Index,&TBINSERTMARK,"Int"),"UInt")-8, this)
+        local TBINSERTMARK := BufferAlloc(8)  ; TBINSERTMARK structure (https://docs.microsoft.com/en-us/windows/win32/api/commctrl/ns-commctrl-tbinsertmark).
+        NumPut("Int", Index, "UInt", Flags, TBINSERTMARK)
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x450, "Ptr", 0, "Ptr", TBINSERTMARK, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setinsertmark
 
     /*
@@ -1043,8 +966,8 @@ class Toolbar
     */
     GetInsertMarkColor()
     {
-        local Color := SendMessage(0x459,,,this)
-        return ((Color & 0xFF0000) >> 16) + (Color & 0x00FF00) + ((Color & 0x0000FF) << 16)
+        local Color := DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x459, "Ptr", 0, "Ptr", 0, "UPtr")  ; BGR Color.
+        return ((Color & 0xFF0000) >> 16) + (Color & 0x00FF00) + ((Color & 0x0000FF) << 16)                        ; RGB Color.
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getinsertmarkcolor
 
     /*
@@ -1058,7 +981,7 @@ class Toolbar
     SetInsertMarkColor(Color)
     {
         Color := SendMessage(0x458,, ((Color&0xFF0000)>>16)+(Color&0xFF00)+((Color&0xFF)<<16), this)
-        DllCall("User32.dll\InvalidateRect", "Ptr", this.hWnd, "Ptr", 0, "Int", TRUE, "Int")
+        DllCall("User32.dll\InvalidateRect", "Ptr", this, "Ptr", 0, "Int", TRUE, "Int")
         return ((Color & 0xFF0000) >> 16) + (Color & 0x00FF00) + ((Color & 0x0000FF) << 16)
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setinsertmarkcolor
 
@@ -1066,8 +989,6 @@ class Toolbar
         Retrieves a pointer to the IDropTarget interface for the toolbar control.
         Return value:
             Returns a pointer to the interface. If an error occurs, the return value is zero.
-        ErrorLevel:
-            It is set to an HRESULT value indicating success or failure of the operation.
         Remarks:
             The toolbar's IDropTarget is used by the toolbar when objects are dragged over or dropped onto it.
             You must call the ObjRelease function to free the memory used by this interface.
@@ -1076,22 +997,21 @@ class Toolbar
     */
     GetObject()
     {
-        local CLSID, r, IDropTarget := 0*VarSetCapacity(CLSID,16)
-        ; https://docs.microsoft.com/en-us/windows/desktop/api/combaseapi/nf-combaseapi-clsidfromstring
-        if r := DllCall("Ole32.dll\CLSIDFromString", "Str", "{00000122-0000-0000-C000-000000000046}", "Ptr", &CLSID, "UInt")
-            throw Exception("Toolbar class GetObject method Error.", -1, "CLSIDFromString returns " . r)
-        return 0 * ( ErrorLevel := SendMessage(0x43E,&CLSID,&IDropTarget,this) ) + IDropTarget
+        local IDropTarget := BufferAlloc(A_PtrSize), CLSID := BufferAlloc(16)
+        DllCall("Ole32.dll\CLSIDFromString", "Str", "{00000122-0000-0000-C000-000000000046}", "Ptr", CLSID)
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43E, "Ptr", CLSID, "Ptr", IDropTarget, "Ptr")
+        return NumGet(IDropTarget, "UPtr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getobject
 
     /*
-        Finds the zero-based index of the first item whose text matches the specified string.
-        Parameters: 
+        Finds the zero-based index of the first item whose display text matches the specified string.
+        Parameters:
             Text:
-                The string that will be searched.
+                A string containing the text that will be searched.
             Min / Max:
                 The search range (inclusive).
             Mode:
-                Determines the behavior of the search. You can specify one or more of the following values.
+                Determines the behavior of the search. You can specify one or more of the following flags.
                 0 = Finds the item whose text exactly matches the specified string.
                 1 = Finds the item whose text begins with the specified string.
                 2 = Finds the item whose text coincides partially with the specified string.
@@ -1101,17 +1021,17 @@ class Toolbar
     */
     FindText(Text, Min := 0, Max := -1, Mode := 0)
     {
-        local Str, Count := this.GetCount(), Index := 0 * ( Max:=Max<0||Max>Count?Count:Max ) - 1
+        local Str, Count := this.Count, Index := 0 * ( Max:=Max<0||Max>Count?Count:Max ) - 1
         while ( ( ++Index < Count ) && ( Index < Max ) )
             if ( Index >= Min ) {
-                Str := Mode&1&&!(Mode&2)?SubStr(this.GetText(this.IndexToCommand(Index)),1,StrLen(Text)):this.GetText(this.IndexToCommand(Index))
+                Str := Mode&1&&!(Mode&2)?SubStr(this.GetButtonText(Index),1,StrLen(Text)):this.GetButtonText(Index)
                 if ( Mode&2?InStr(Str,Text,Mode&4):Mode&4?Str==Text:Str=Text )
                     return Index  ; OK.
         } return -1  ; ERROR.
     }
 
     /*
-        Allow or prevent changes in that control to be redrawn.
+        Allow or prevent changes in the control to be redrawn.
         Parameters:
             Mode:
                 The redraw state.
@@ -1120,11 +1040,51 @@ class Toolbar
     */
     SetRedraw(Mode)
     {
-        SendMessage(0xB, !!Mode,, this)
-        if ( Mode )
-            DllCall("User32.dll\InvalidateRect", "Ptr", this.hWnd, "Ptr", 0, "Int", TRUE, "Int")
-           ,DllCall("User32.dll\UpdateWindow", "Ptr", this.hWnd, "Int")
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0xB, "Ptr", !!Mode, "Ptr", 0, "Ptr")
+        if (Mode)
+            DllCall("User32.dll\InvalidateRect", "Ptr", this, "Ptr", 0, "Int", TRUE)
+           ,DllCall("User32.dll\UpdateWindow", "Ptr", this)
     } ; https://docs.microsoft.com/en-us/windows/desktop/gdi/wm-setredraw
+
+    /*
+        Retrieves the index of the hot item in the toolbar.
+        Return value:
+            Returns the index of the hot item, or -1 if no hot item is set.
+        Remarks:
+            Toolbar controls that do not have the TBSTYLE_FLAT style do not have hot items.
+    */
+    GetHotItem()
+    {
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x447, "Ptr", 0, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-gethotitem
+
+    /*
+        Sets the hot item in a toolbar.
+        Parameters:
+            Index:
+                The zero-based index of the item that will be made hot. If this value is -1, none of the items will be hot.
+            Flags:
+                Flags that indicate why the hot item has changed. This can be one or more of the following values:
+                0x000 HICF_OTHER                  The change in the hot item resulted from an event that could not be determined. This will most often be due to a change in focus or the TB_SETHOTITEM message.
+                0x001 HICF_MOUSE                  The change in the hot item resulted from a mouse event.
+                0x002 HICF_ARROWKEYS              The change in the hot item was caused by an arrow key.
+                0x004 HICF_ACCELERATOR            The change in the hot item was caused by a shortcut key.
+                0x008 HICF_DUPACCEL               Modifies HICF_ACCELERATOR. If this flag is set, more than one item has the same shortcut key character.
+                0x010 HICF_ENTERING               Modifies the other reason flags. If this flag is set, there is no previous hot item and idOld does not contain valid information.
+                0x020 HICF_LEAVING                Modifies the other reason flags. If this flag is set, there is no new hot item and idNew does not contain valid information.
+                0x040 HICF_RESELECT               The change in the hot item resulted from the user entering the shortcut key for an item that was already hot.
+                0x080 HICF_LMOUSE                 The change in the hot item resulted from a left-click mouse event.
+                0x100 HICF_TOGGLEDROPDOWN         Causes the button to switch states.
+                Read more: https://docs.microsoft.com/en-us/windows/desktop/api/Commctrl/ns-commctrl-tagnmtbhotitem.
+        Return value:
+            Returns the index of the previous hot item, or -1 if there was no hot item.
+        Remarks:
+            The behavior of this message is not defined for toolbars that do not have the TBSTYLE_FLAT style.
+    */
+    SetHotItem(Index, Flags := 0)
+    {
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x45E, "Ptr", Index, "Ptr", Flags, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-sethotitem2
 
     /*
         Registers a function or method to be called when the given event is raised by this control.
@@ -1142,21 +1102,113 @@ class Toolbar
         ;   TBN_QUERYINSERT = -706. TBN_QUERYDELETE = -707. TBN_TOOLBARCHANGE = -708.
         this.Ctrl.OnNotify(EventName, Callback, AddRemove)
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/bumper-toolbar-control-reference-notifications
+
+
+    ; ===================================================================================================================
+    ; PROPERTIES
+    ; ===================================================================================================================
+    /*
+        Retrieves the number of buttons currently in the Toolbar control.
+    */
+    Count[]
+    {
+        get => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x418, "Ptr", 0, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-buttoncount
+
+    /*
+        Retrieves the number of rows of buttons in the toolbar with the TBSTYLE_WRAPABLE style.
+    */
+    Rows[]
+    {
+        get => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x428, "Ptr", 0, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getrows
+
+    /*
+        Retrieves the maximum number of text rows that can be displayed on a toolbar button.
+        -----------------------------------------------------------------------
+        Sets the maximum number of text rows displayed on a toolbar button.
+        Parameters:
+            Value:
+                Maximum number of rows of text that can be displayed.
+        Remarks:
+            To cause text to wrap, you must set the maximum button width by sending a TB_SETBUTTONWIDTH message.
+            The text wraps at a word break; line breaks ("\n") in the text are ignored. Text in TBSTYLE_LIST toolbars is always shown on a single line.
+    */
+    TextRows[]
+    {
+        ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-gettextrows
+        get => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43D, "Ptr", 0, "Ptr", 0, "Ptr")
+        ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setmaxtextrows
+        set => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43C, "Ptr", Value, "Ptr", 0, "Ptr")
+    }
+
+
+    ; ===================================================================================================================
+    ; SPECIAL METHODS AND PROPERTIES
+    ; ===================================================================================================================
+    /*
+        Enumerates items from the Toolbar control.
+        Syntax:
+            for ItemIndex, ItemText in IToolbar
+            for ItemIndex in IToolbar
+    */
+    __Enum(NumberOfVars)
+    {
+        static Enumerator := Func("IToolbar_Enumerator")
+        return Enumerator.Bind(this, NumberOfVars)
+    }
+
+    /*
+        Retrieves or changes the text of the specified button.
+    */
+    __Item[Index]
+    {
+        get => this.GetButtonText(Index)
+        set => this.SetButtonText(Index, Value)
+    }
 }
 
 
 
 
 
-Toolbar_OnMessage(wParam, lParam, Msg, hWnd)
+; #######################################################################################################################
+; FUNCTIONS                                                                                                             #
+; #######################################################################################################################
+OnMessage(0x02, "IToolbar_OnMessage")  ; WM_DESTROY.
+
+IToolbar_OnMessage(wParam, lParam, Message, hWnd)
 {
-    global Toolbar
+    global IToolbar
     local
 
-    if ( Msg == 0x02 )  ; WM_DESTROY.
+    switch Message
     {
-        for ctrl_hwnd, ctrl_obj in Toolbar.Instance.Clone()
-            if ( ctrl_obj.hGui == hWnd )
+    case 0x0002:  ; WM_DESTROY.
+        for ctrl_hwnd, ctrl_obj in IToolbar.Instance.Clone()
+        {
+            if (ctrl_obj.Gui.Hwnd == hWnd)
+            {
                 ctrl_obj.Destroy()
+            }
+        }
     }
+}
+
+IToolbar_Enumerator(this, NumberOfVars, ByRef Key, ByRef Value := "")
+{
+    Key := A_Index - 1  ; Zero-based item index.
+    if (NumberOfVars == 2)
+        Value := this.GetButtonText(Key)  ; Item text.
+    return A_Index <= this.Count
+}
+
+CreateToolbar(Gui, Options)
+{
+    return IToolbar.New(Gui, Options)
+}
+
+ToolbarFromHwnd(Hwnd)
+{
+    return IToolbar.Instance[IsObject(Hwnd)?Hwnd.hWnd:Hwnd]
 }
