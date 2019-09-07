@@ -1,4 +1,4 @@
-﻿/*
+/*
     Remarks:
         Item indexes are zero based.
         Items can be identified by their index or their command identifier.
@@ -142,7 +142,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         Style |= (Text == "`b"), NumPut("Ptr",Data,"Ptr",type(Text)=="Integer"?Text:&Text,,NumPut("Int"
         ,Style&1?abs(Image):Image,"Int",CommandID,"UCHar",State,"UCHar",Style,TBBUTTON)-2+A_PtrSize)
         return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x443, "Ptr", Item, "Ptr", TBBUTTON, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-insertbutton
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-insertbutton
 
     /*
         Deletes the specified button from the toolbar.
@@ -155,7 +155,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     Delete(Index)
     {
         return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x416, "Ptr", Index, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-deletebutton
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-deletebutton
 
     /*
         Deletes all buttons from the toolbar.
@@ -172,9 +172,9 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         Retrieves the display text of the specified button from the toolbar.
         Parameters:
             Index:
-                The zero-based index of the button whose text is to be changed.
+                The zero-based index of the button whose text is to be retrieved.
         Return value:
-            Returns a string with the button text that is currently displayed by the retrieved.
+            Returns a string with the text that is currently displayed by the button.
             An empty string indicates one of the following cases:
                 1) The display text of the button is an empty string.
                 2) The button has no display text assigned to it (null pointer).
@@ -512,7 +512,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     {
         local POINT := (X & 0xFFFFFFFF) | ((Y & 0xFFFFFFFF) << 32)
         return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x445, "Ptr", 0, "Ptr", POINT, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-hittest
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-hittest
 
     /*
         Determines whether the specified button in the toolbar is checked.
@@ -997,10 +997,10 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     */
     GetObject()
     {
-        local IDropTarget := BufferAlloc(A_PtrSize), CLSID := BufferAlloc(16)
+        local IDropTarget := 0, CLSID := BufferAlloc(16)
         DllCall("Ole32.dll\CLSIDFromString", "Str", "{00000122-0000-0000-C000-000000000046}", "Ptr", CLSID)
-        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43E, "Ptr", CLSID, "Ptr", IDropTarget, "Ptr")
-        return NumGet(IDropTarget, "UPtr")
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43E, "Ptr", CLSID, "UPtrP", IDropTarget, "Ptr")
+        return IDropTarget
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getobject
 
     /*
