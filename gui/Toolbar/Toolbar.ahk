@@ -1,4 +1,4 @@
-﻿/*
+/*
     Remarks:
         Item indexes are zero based.
         Items can be identified by their index or their command identifier.
