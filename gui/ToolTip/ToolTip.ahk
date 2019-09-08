@@ -1,4 +1,7 @@
+; AutoHotkey v2.0-a104-3e7a969d.
+
 /*
+    Encapsulates the creation and manipulation by means of messages of a standart Tooltip control in a class.
     Requirements:
         Windows Vista or later.
     Tooltip Control Reference:

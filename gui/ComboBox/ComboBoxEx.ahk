@@ -745,7 +745,7 @@ class IComboBoxEx  ; https://github.com/flipeador  |  https://www.autohotkey.com
         Retrieves the handle to the edit control portion of a ComboBoxEx control if it uses the CBS_DROPDOWN style..
         A ComboBoxEx control uses an edit box when it is set to the CBS_DROPDOWN (2) style.
     */
-    EditControl[] => ControlGetHwnd("Edit1", "ahk_id" . this.hwnd)
+    EditControl[] => ControlGetHwnd("Edit1", "ahk_id" . this.hwnd) || 0
     ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-geteditcontrol
 
     /*
@@ -784,8 +784,8 @@ class IComboBoxEx  ; https://github.com/flipeador  |  https://www.autohotkey.com
     */
     __Item[Index]
     {
-        get => this.GetItemText(Index==-1 ? this.EditControl?-1:this.Selection : Index)
-        set => this.SetItemText(Index==-1 ? this.EditControl?-1:this.Selection : Index, Value)
+        get => Index==-1&&this.EditControl ? this.GetEditText()      : this.GetItemText(Index==-1 ? this.Selection : Index       )
+        set => Index==-1&&this.EditControl ? this.SetEditText(Value) : this.SetItemText(Index==-1 ? this.Selection : Index, Value)
     }
 }
 
