@@ -1,120 +1,106 @@
-; Clipboard := Format("0x{:X}", 0x0400+60)
-; iItem A_PtrSize, pszText 2*A_PtrSize, cchTextMax 3*A_PtrSize, iImage 3*A_PtrSize+4, iSelectedImage 3*A_PtrSize+8, iOverlay 3*A_PtrSize+12, iIndent 3*A_PtrSize+16, lParam 4*A_PtrSize+16
-
-
-
-
+; AutoHotkey v2.0-a104-3e7a969d.
 
 /*
+    Encapsulates the creation and manipulation by means of messages of a standart ComboBoxEx control in a class.
     Remarks:
         Item indexes are zero based.
-        Sometimes DllCall is used instead of SendMessage for better performance.
+        DllCall is used instead of SendMessage to improve performance.
+        Include this file in the the Auto-execute Section of the script.
     ComboBoxEx Control Reference:
-        https://docs.microsoft.com/en-us/windows/desktop/controls/comboboxex-control-reference
-    ComboBox Control Styles:
-        https://docs.microsoft.com/es-es/windows/desktop/Controls/combo-box-styles
-    ComboBoxEx Control Extended Styles:
-        https://docs.microsoft.com/es-es/windows/desktop/Controls/comboboxex-control-extended-styles
+        https://docs.microsoft.com/en-us/windows/win32/controls/comboboxex-control-reference
 */
-class ComboBoxEx
+class IComboBoxEx  ; https://github.com/flipeador  |  https://www.autohotkey.com/boards/memberlist.php?mode=viewprofile&u=60315
 {
     ; ===================================================================================================================
-    ; STATIC/CLASS VARIABLES
+    ; STATIC/CLASS VARIABLES (readonly)
     ; ===================================================================================================================
     static Type         := "ComboBoxEx"    ; The type of the control.
-    static ClassName    := "ComboBoxEx32"  ; Control class.
-    static Instance     := { }             ; Instances of this control {hwnd:ctrl_obj}.
+    static ClassName    := "ComboBoxEx32"  ; The control class name.
+    static Instance     := Map()           ; Instances of this control (hWnd:obj).
 
 
     ; ===================================================================================================================
-    ; INSTANCE VARIABLES
+    ; INSTANCE VARIABLES (readonly)
     ; ===================================================================================================================
-    Gui            := 0                          ; Gui Object.
-    Ctrl           := 0                          ; Gui Control Object.
-    hWnd           := 0                          ; The HWND of the control.
-    hGui           := 0                          ; The HWND of the GUI.
+    Gui          := 0         ; The Gui object associated with this control.
+    Ctrl         := 0         ; The Gui control class object.
+    hWnd         := 0         ; The control handle.
 
 
     ; ===================================================================================================================
     ; CONSTRUCTOR
     ; ===================================================================================================================
     /*
-        Adds a ComboBoxEx control to the specified GUI window.
+        Adds a ComboBoxEx control to the specified GUI window. The CreateComboBox function can be used to create the control.
         Parameters:
             Gui:
-                The GUI window object.
-                You can specify an existing control to retrieve the control object.
+                The GUI window object. This object must be previously created by a call to the GuiCreate function.
             Options:
-                Some special options for this control. By default, the list box is not displayed unless the user selects an icon next to the edit control (CBS_DROPDOWN).
+                Some specific options for this control. You can specify one or more of the following words.
                 Simple      (CBS_SIMPLE) Displays the list box at all times. The current selection in the list box is displayed in the edit control.
+                            By default, the list box is not displayed unless the user selects an icon next to the edit control (CBS_DROPDOWN).
                 DDL         (CBS_DROPDOWNLIST) Similar to CBS_DROPDOWN, except that the edit control is replaced by a static text item that displays the current selection in the list box.
                 ChooseN     The item that will be selected by default. N is the zero-based index of the item to be selected.
                 rN          Specifies the maximum number of visible rows in the list box. By default it is 5. AHK takes care of CBS_SIMPLE.
             Items:
-                The initial list of items that are to be added in the control.
+                The items to be added once the control is created.
     */
-    __New(Gui, Options := "", Items*)
+    __New(Gui, Options, Items*)
     {
-        if (  ComboBoxEx.Instance.HasKey( this.hGui := IsObject(Gui) ? Gui.hWnd : Gui )  )
-            return ComboBoxEx.Instance[ this.hGui ]
+        global IComboBoxEx
+        local
 
-        if ( Type(this.Gui:=GuiFromHwnd(this.hGui)) !== "Gui" )
-            throw Exception("ComboBoxEx class invalid parameter #1.", -1)
-        if ( Type(Options) !== "String" )
-            throw Exception("ComboBoxEx class invalid parameter #2.", -1)
-
-        if ( ComboBoxEx.Instance.Count() == 0 )
-            OnMessage(0x02, "ComboBoxEx_OnMessage")  ; WM_DESTROY.
+        if (Type(this.Gui:=Gui) !== "Gui")
+            throw Exception("IComboBoxEx.New() - Invalid parameter #1.", -1)
 
         ; 0x40 = CBS_AUTOHSCROLL. 1 = CBS_SIMPLE. 2 = CBS_DROPDOWN. 3 = CBS_DROPDOWNLIST.
-        local style := 0x40 | (RegExMatch(Options,"i)\bsimple\b")?1:RegExMatch(Options,"i)\bddl\b")?3:2)
+        style := 0x40 | (RegExMatch(Options,"i)\bsimple\b")?1:RegExMatch(Options,"i)\bddl\b")?3:2)
 
-        if ( style & 0x2 )  ; CBS_DROPDOWN || CBS_DROPDOWNLIST.
+        if (style & 0x2)  ; CBS_DROPDOWN || CBS_DROPDOWNLIST.
         {
-            local rows
             rows    := RegExMatch(Options,"i)\br(\d+)\b",rows) ? rows[1] : 5  ; 5 = Default number of rows.
             Options := RegExReplace(Options, "i)\br\d+\b")
         }
 
-        ; ComboBoxEx Control Reference.
-        ; https://msdn.microsoft.com/en-us/library/windows/desktop/bb775740.aspx.
         Options   := RegExReplace(Options, "i)\b(simple|ddl)\b")
-        this.ctrl := this.Gui.AddCustom("+" . style . " +0x210000 r1 " . Options . " Class" . ComboBoxEx.ClassName)
-        this.hWnd := this.Ctrl.hWnd
-        ComboBoxEx.Instance[this.hWnd] := this
+        this.Ctrl := this.Gui.AddCustom("+" . style . " +0x210000 r1 " . Options . " Class" . IComboBoxEx.ClassName)
+        IComboBoxEx.Instance[this.Ptr:=this.hWnd:=this.Ctrl.hWnd] := this
 
-        SendMessage(0x2005, TRUE,, this)  ; CBEM_SETUNICODEFORMAT.
-        if ( style & 0x2 )  ; CBS_DROPDOWN || CBS_DROPDOWNLIST.
+        ; CBEM_SETUNICODEFORMAT message.
+        ; https://docs.microsoft.com/en-us/windows/win32/controls/cbem-setunicodeformat.
+        SendMessage(0x2005, TRUE,, this)  ; Sets the Unicode character format flag for the control.
+
+        if (style & 0x2)  ; CBS_DROPDOWN || CBS_DROPDOWNLIST.
             this.SetVisibleRows(rows)
-
-        loop ( Items.Length() )
-            this.add(, string(Items[A_Index]) )
-
-        local match
-        if ( RegExMatch(Options,"i)\bchoose(\d+)\b",match) )
-            this.SetCurSel( match[1] )
+        for Item in Items
+            this.Add(, string(Item))
+        if (RegExMatch(Options,"i)\bchoose(\d+)\b",match))
+            this.SetCurSel(match[1])
     }
 
 
     ; ===================================================================================================================
     ; PUBLIC METHODS
     ; ===================================================================================================================
+    /*
+        Destroys the control and releases all associated resources.
+        This method is automatically called when the parent window is destroyed.
+    */
     Destroy()
     {
-        ComboBoxEx.Instance.Delete(this.hWnd)
-        DllCall("User32.dll\DestroyWindow", "Ptr", this.hWnd, "Int")
-
-        if ( ComboBoxEx.Instance.Count() == 0 )
-            OnMessage(0x02, "ComboBoxEx_OnMessage", 0)  ; WM_DESTROY.
+        IComboBoxEx.Instance.Delete(this.hWnd)
+        DllCall("User32.dll\DestroyWindow", "Ptr", this)
     }
 
     /*
-        Inserts a new item.
+        Inserts a new item in this combo box.
         Parameters:
-            Item:
-                The zero-based index of the item.
+            Index:
+                The zero-based index of a item.
+                The method inserts the new item to the left of this item.
+                To insert an item at the end of the list, set the Index parameter to -1.
             Text:
-                A string that contains the item's text.
+                A string with the text for the item.
             Image:
                 The zero-based index of an image within the image list. The specified image will be displayed for the item when it is not selected.
                 If this parameter is set to -1 (I_IMAGECALLBACK), the control will request the information by using CBEN_GETDISPINFO notification codes.
@@ -127,150 +113,101 @@ class ComboBoxEx
             Indent:
                 The number of indent spaces to display for the item. Each indentation equals 10 pixels.
                 If this member is set to -1 (I_INDENTCALLBACK), the control will request the information by using CBEN_GETDISPINFO notification codes.
-            lParam:
-                A value specific to the item.
+            Data:
+                Application-defined value associated with the ComboBox item.
+                This value must be any integer number. By default it is zero.
         Return value:
-            Returns the index at which the new item was inserted if successful, or -1 otherwise.
+            If the method succeeds, the return value is the index at which the new item was inserted.
+            If the method fails, the return value is -1.
     */
-    Add(Item := -1, ByRef Text := "", Image := 0, SelImage := 0, Overlay := 0, Indent := 0, lParam := 0)
+    Add(Index := -1, Text := "", Image := 0, SelImage := 0, Overlay := 0, Indent := 0, Data := 0)
     {
-        local COMBOBOXEXITEM
-        VarSetCapacity(COMBOBOXEXITEM, A_PtrSize == 4 ? 36 : 56)
-       ,NumPut(lParam,NumPut(Indent,NumPut(Overlay,NumPut(SelImage,NumPut(Image,NumPut(&Text,NumPut(Item,NumPut(0x3F,&COMBOBOXEXITEM,"UInt")+A_PtrSize-4,"Ptr"),"UPtr")+4,"Int"),"Int"),"Int"),"Int")+A_PtrSize-4,"UPtr")
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x40B, "Ptr", 0, "Ptr", &COMBOBOXEXITEM, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-insertitem
-    
-    /*
-        Removes an item.
-        Parameters:
-            Item:
-                The zero-based index of the item to be removed.
-        Return value:
-            Returns the number of items remaining in the control. If 'Item' is invalid, the message returns -1 (CB_ERR).
-    */
-    Delete(Item)
-    {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x144, "Ptr", Item, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-deleteitem
+        local COMBOBOXEXITEM := BufferAlloc(A_PtrSize==4?36:56)
+        NumPut("UPtr",Data,NumPut("Int",Image,"Int",SelImage,"Int",Overlay,"Int",Indent,NumPut("UPtr",&Text,NumPut("Ptr",Index,NumPut("UInt",0x3F,COMBOBOXEXITEM)+A_PtrSize-4))+A_PtrSize-4))
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40B, "Ptr", 0, "Ptr", COMBOBOXEXITEM, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-insertitem
 
     /*
-        Removes all items from the list box and edit control of a combo box.
+        Deletes the specified item from the combo box.
+        Parameters:
+            Index:
+                The zero-based index of the item to delete.
         Return value:
-            This message always returns 0 (CB_OKAY).
+            If the method succeeds, the return value is the number of items remaining in the control.
+            If the method fails, the return value is -1.
+    */
+    Delete(Index)
+    {
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x144, "Ptr", Index, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-deleteitem
+
+    /*
+        Removes all items from the list box and edit control of the combo box.
     */
     DeleteAll()
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x14B, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cb-resetcontent
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x14B, "Ptr", 0, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cb-resetcontent
 
     /*
-         Retrieves the index of the currently selected item, if any, in the list box of a combo box.
-         Return value:
-            The return value is the zero-based index of the currently selected item. If no item is selected, it is -1 (CB_ERR).
-    */
-    GetCurSel()
-    {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x147, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cb-getcursel
-
-    /*
-        Selects a string in the list of a combo box. If necessary, the list scrolls the string into view.
-        The text in the edit control of the combo box changes to reflect the new selection, and any previous selection in the list is removed.
+        Retrieves the display text of the specified item in the list box of the combo box.
         Parameters:
-            Item:
-                Specifies the zero-based index of the string to select. If this parameter is -1, any current selection in the list is removed and the edit control is cleared.
+            Index:
+                The zero-based index of the item whose text is to be retrieved.
         Return value:
-            If the message is successful, the return value is the index of the item selected.
-            If 'Item' is greater than the number of items in the list or if 'Item' is -1, the return value is -1 (CB_ERR) and the selection is cleared.
+            Returns a string with the text that is currently displayed by the item.
+            An empty string indicates one of the following cases:
+                1) The display text of the item is an empty string.
+                3) The index of the specified item is invalid.
     */
-    SetCurSel(Item)
+    GetItemText(Index)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x14E, "Ptr", Item, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cb-setcursel
+        local Length := DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x149, "Ptr", Index, "Ptr", 0, "Ptr")  ; CB_GETLBTEXTLEN message.
+        if (Length <= 0)  ; Length: The length, in characters, of the string in the list of the combo box, not including zero.
+            return ""     ; Error (?).
+        local Buffer         := BufferAlloc(2*Length+2)          ; Character buffer (up to «Length+1» characters).
+        local COMBOBOXEXITEM := BufferAlloc(A_PtrSize==4?36:56)  ; COMBOBOXEXITEMW structure.
+        NumPut("Ptr", Index, "UPtr", NumPut("UShort",0,Buffer)-2, "Int", Length+1, NumPut("UInt",1,COMBOBOXEXITEM)+A_PtrSize-4)
+        ; If the CBEIF_TEXT flag is set in the mask member of the COMBOBOXEXITEM structure, the control may change the-
+        ; -pszText member of the structure to point to the new text instead of filling the buffer with the requested text.
+        ; Applications should not assume that the text will always be placed in the requested buffer.  (*)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40D, "Ptr", 0, "Ptr", COMBOBOXEXITEM, "Ptr")
+             ? StrGet(NumGet(COMBOBOXEXITEM,2*A_PtrSize), Length)  ; Ok.     (* -> NumGet)
+             : ""                                                  ; Error.
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-getitem
 
     /*
-        Gets the length, in characters, of a string in the list of a combo box.
+        Changes the display text of the specified item in the list box of the combo box.
         Parameters:
-            Item:
-                The zero-based index of the string.
-        Return value:
-            Returns the length of the string, in characters, excluding the terminating null character.
-            If the 'Item' parameter does not specify a valid index, the return value is -1 (CB_ERR).
-    */
-    GetTextLength(Item)
-    {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x149, "Ptr", Item, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cb-getlbtextlen
-
-    /*
-        Gets the text of the specified item, in the list box of a combo box.
-        Parameters:
-            Item:
-                The zero-based index of the item from which the text will be retrieved.
-            Length:
-                The maximum number of characters to be retrieved. If zero, the whole text is recovered.
-        Return value:
-            Returns the item text.
-        ErrorLevel:
-            It is set to zero if successful, or nonzero otherwise.
-    */
-    GetText(Item := -1, Length := -1)
-    {
-        if ( ( Length := Length == -1 ? this.GetTextLength(Item) : Length ) < 1 )
-            return SubStr(ErrorLevel := Length !== 0, 0)
-        
-        local COMBOBOXEXITEM, Buffer
-        VarSetCapacity(COMBOBOXEXITEM,A_PtrSize==4?36:56), VarSetCapacity(Buffer, 2*Length+2)
-       ,NumPut(Length+1, NumPut(&Buffer,NumPut(Item,NumPut(1,&COMBOBOXEXITEM,"UInt")+A_PtrSize-4,"Ptr"),"UPtr"), "Int")
-        return ( ErrorLevel := !SendMessage(0x40D,,&COMBOBOXEXITEM,this) ) ? "" : StrGet(&Buffer,Length,"UTF-16")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-getitem
-
-    /*
-        Sets the text of the specified item, in the list box of a combo box.
-            Item:
-               The zero-based index of the item.
+            Index:
+                The zero-based index of the item whose text is to be changed.
             Text:
-                The text to be set.
+                A string that contains the new text for the item.
         Return value:
-            Returns nonzero if successful, or zero otherwise.
+            Returns TRUE if successful, or FALSE otherwise.
     */
-    SetText(Item, ByRef Text)
+    SetItemText(Index, Text)
     {
-        local COMBOBOXEXITEM
-        VarSetCapacity(COMBOBOXEXITEM, A_PtrSize == 4 ? 36 : 56)
-       ,NumPut(&Text, NumPut(Item,NumPut(1,&COMBOBOXEXITEM,"UInt")+A_PtrSize-4,"Ptr"), "UPtr")
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x40C, "Ptr", 0, "Ptr", &COMBOBOXEXITEM, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-setitem
+        local COMBOBOXEXITEM := BufferAlloc(A_PtrSize==4?36:56)  ; COMBOBOXEXITEMW structure.
+        NumPut("Ptr", Index, "UPtr", &Text, NumPut("UInt",1,COMBOBOXEXITEM)+A_PtrSize-4)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40C, "Ptr", 0, "Ptr", COMBOBOXEXITEM, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-setitem
 
     /*
-        Gets the number of items in the list box of a combo box.
-        Return value:
-            The return value is the number of items in the list box. If an error occurs, it is -1 (CB_ERR).
+        Retrieves the text of the edit control of the combo box.
     */
-    GetCount()
+    GetEditText()
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x146, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cb-getcount
+        return ControlGetText("Edit1", "ahk_id" . this.hWnd)
+    }
 
     /*
-        Gets the handle to the child combo box control.
-        Return value:
-            Returns the handle to the combo box control within the ComboBoxEx control.
+        Changes the text of the edit control of the combo box.
     */
-    GetComboControl()
+    SetEditText(Text)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x406, "Ptr", 0, "Ptr", 0, "UPtr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-getcombocontrol
-
-    /*
-        Gets the handle to the edit control portion of a ComboBoxEx control. A ComboBoxEx control uses an edit box when it is set to the CBS_DROPDOWN (2) style.
-        Return value:
-            Returns the handle to the edit control within the ComboBoxEx control if it uses the CBS_DROPDOWN (2) style. Otherwise, the message returns NULL.
-    */
-    GetEditControl()
-    {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x407, "Ptr", 0, "Ptr", 0, "UPtr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-geteditcontrol
+        ControlSetText(Text, "Edit1", "ahk_id" . this.hWnd)
+    }
 
     /*
         Determines whether the user has changed the text of a ComboBoxEx edit control.
@@ -284,25 +221,24 @@ class ComboBoxEx
     */
     HasEditChanged()
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x40A, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-haseditchanged
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40A, "Ptr", 0, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-haseditchanged
 
     /*
-        Gets the starting and ending character positions of the current selection in the edit control of a combo box.
+        Retrieves the starting and ending character positions of the current selection in the edit control of a combo box.
         Return value:
-            Returns an object with the following keys:
-                v          Value with the starting position of the selection in the LOWORD and with the ending position of the first character after the last selected character in the HIWORD.
-                Start      Receives the starting position of the selection.
-                End        Receives the ending position of the selection.
+            Returns an object with the following properties:
+                Start    Receives the starting position of the selection.
+                End      Receives the ending position of the selection.
     */
     GetEditSel()
-    { 
-        local start := 0, end := 0
-        return { v:SendMessage(0x140,&start,&end,this) , start:start , end:end }
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cb-geteditsel
+    {
+        local Sel := DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x140, "Ptr", 0, "Ptr", 0, "Ptr")
+        return { Start:Sel&0xFFFF , End:(Sel>>16)&0xFFFF }
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cb-geteditsel
 
     /*
-        Selects characters in the edit control of a combo box.
+        Selects characters in the edit control of the combo box.
         Parameters:
             Start:
                 Specifies the starting character position of the selection.
@@ -311,90 +247,119 @@ class ComboBoxEx
     */
     SetEditSel(Start, End := "")
     {
-        SendMessage(0xB1, Start, End==""?Start:End, this.GetEditControl())
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/em-setsel
-    
+        DllCall("User32.dll\SendMessageW", "Ptr", this.EditControl, "UInt", 0xB1, "Ptr", Start, "Ptr", End==""?Start:End, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/em-setsel
+
     /*
-        Gets the text that is displayed as the textual cue, or tip, in the edit control.
+        Retrieves the text that is displayed as the textual cue, or tip, in the edit control.
         Return value:
-            Returns the text set as the textual cue.
-        ErrorLevel:
-            It is set to zero if successful, or nonzero otherwise.
+            If the method succeeds, the return value is a string with the text set as the textual cue.
+            If the method fails, the return value an empty string.
     */
     GetCueBanner()
     {
-        local Buffer
-        VarSetCapacity(Buffer, 2*1024+2)
-        ErrorLevel := !SendMessage(0x1502, &Buffer, 1024+1, this.GetEditControl())
-        return ErrorLevel ? "" : StrGet(&Buffer,1024,"UTF-16")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/em-getcuebanner
+        local Buffer := BufferAlloc(2048)  ; Character buffer (up to 1024 characters).
+        return DllCall("User32.dll\SendMessageW", "Ptr", this.EditControl, "UInt", 0x1502, "Ptr", Buffer, "Ptr", Buffer.Size//2, "Ptr")
+             ? StrGet(Buffer)  ; Ok.
+             : ""              ; Error.
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/em-getcuebanner
 
     /*
         Sets the textual cue, or tip, that is displayed by the edit control to prompt the user for information.
         Parameters:
             Text:
-                The text to display as the textual cue.
+                A string with the text to display as the textual cue.
             Mode:
-                TRUE if the cue banner should show even when the edit control has focus.
-                FALSE is the default behavior, the cue banner disappears when the user clicks in the control.
+                FALSE    The cue banner disappears when the user clicks in the control.
+                TRUE     The cue banner should show even when the edit control has focus.
         Return value:
-            If the message succeeds, it returns TRUE. Otherwise it returns FALSE.
+            Returns TRUE if successful, or FALSE otherwise.
     */
     SetCueBanner(Text, Mode := 0)
     {
-        return SendMessage(0x1501, !!Mode, &Text, this.GetEditControl())
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/em-setcuebanner
+        return DllCall("User32.dll\SendMessageW", "Ptr", this.EditControl, "UInt", 0x1501, "Ptr", Mode, "Str", String(Text), "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/em-setcuebanner
 
     /*
-        Gets the number of indent spaces to display for the specified item.
-        Return value:
-            The return value is the item indent. If an error occurs, it is -1 (CB_ERR).
+         Retrieves the index of the currently selected item, if any, in the list box of the combo box.
+         Return value:
+            The return value is the index of the currently selected item.
+            If no item is selected, the return value is -1.
     */
-    GetIndent(Item)
+    GetCurSel()
     {
-        local COMBOBOXEXITEM
-        VarSetCapacity(COMBOBOXEXITEM, A_PtrSize == 4 ? 36 : 56)
-       ,NumPut(Item, NumPut(0x10,&COMBOBOXEXITEM,"UInt")+A_PtrSize-4, "Ptr")
-       return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x40D, "Ptr", 0, "Ptr", &COMBOBOXEXITEM, "Ptr")
-            ? NumGet(&COMBOBOXEXITEM+3*A_PtrSize+16, "Int")
-            : -1  ; CB_ERR.
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-getitem
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x147, "Ptr", 0, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cb-getcursel
+
+    /*
+        Selects a string in the list of the combo box. If necessary, the list scrolls the string into view.
+        The text in the edit control of the combo box changes to reflect the new selection, and any previous selection in the list is removed.
+        Parameters:
+            Index:
+                The zero-based index of the string to select.
+                If this parameter is -1, any current selection in the list is removed and the edit control is cleared.
+        Return value:
+            If the method succeeds, the return value is the index of the item selected.
+            If 'Index' is greater than the number of items in the list or if 'Index' is -1, the return value is -1 and the selection is cleared.
+    */
+    SetCurSel(Index)
+    {
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x14E, "Ptr", Index, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cb-setcursel
+
+    /*
+        Retrieves the number of indent spaces to display for the specified item.
+        Return value:
+            If the method succeeds, the return value is the item indent.
+            If the method fails, the return value is -1.
+    */
+    GetItemIndent(Index)
+    {
+        local COMBOBOXEXITEM := BufferAlloc(A_PtrSize==4?36:56)  ; COMBOBOXEXITEMW structure.
+        NumPut("Ptr", Index, NumPut("UInt",0x10,COMBOBOXEXITEM)+A_PtrSize-4)
+       return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40D, "Ptr", 0, "Ptr", COMBOBOXEXITEM, "Ptr")
+            ? NumGet(COMBOBOXEXITEM, 3*A_PtrSize+16, "Int")  ; Ok.
+            : -1                                             ; Error.
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-getitem
 
     /*
         Sets the number of indent spaces to display for the specified item.
+        Parameters:
+            Index:
+                The zero-based index of the item whose indent is to be changed.
+            Indent:
+                The number of indent spaces to display for the item. Each indentation equals 10 pixels.
         Return value:
-            Returns nonzero if successful, or zero otherwise.
+            Returns TRUE if successful, or FALSE otherwise.
     */
-    SetIndent(Item, Indent)
+    SetItemIndent(Index, Indent)
     {
-        local COMBOBOXEXITEM
-        VarSetCapacity(COMBOBOXEXITEM, A_PtrSize == 4 ? 36 : 56)
-       ,NumPut(Indent, NumPut(Item,NumPut(0x10,&COMBOBOXEXITEM,"UInt")+A_PtrSize-4,"Ptr")+A_PtrSize+16, "Int")
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x40C, "Ptr", 0, "Ptr", &COMBOBOXEXITEM, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-setitem
+        local COMBOBOXEXITEM := BufferAlloc(A_PtrSize==4?36:56)  ; COMBOBOXEXITEMW structure.
+        NumPut("Int", Indent, NumPut("Ptr",Index,NumPut("UInt",0x10,COMBOBOXEXITEM)+A_PtrSize-4)+A_PtrSize+16)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40C, "Ptr", 0, "Ptr", COMBOBOXEXITEM, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-setitem
+
+    /*
+        Retrieves the handle to an image list assigned to a ComboBoxEx control.
+        Return value:
+            Returns the handle to the image list assigned to the control if successful, or zero otherwise.
+    */
+    GetItemImageList()
+    {
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x403, "Ptr", 0, "Ptr", 0, "UPtr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-getimagelist
 
     /*
         Sets an image within the image list to the specified item.
         Return value:
-            Returns nonzero if successful, or zero otherwise.
+            Returns TRUE if successful, or FALSE otherwise.
     */
-    SetImage(Item, Image := "", SelImage := "", Overlay := "")
+    SetItemImage(Index, Image := 0, SelImage := 0, Overlay := 0)
     {
-        local COMBOBOXEXITEM
-        VarSetCapacity(COMBOBOXEXITEM, A_PtrSize == 4 ? 36 : 56)
-       ,NumPut(Overlay,NumPut(SelImage,NumPut(Image,NumPut(Item,NumPut((Image==""?0:2)|(SelImage==""?0:4)|(Overlay==""?0:8),&COMBOBOXEXITEM,"UInt")+A_PtrSize-4,"Ptr")+A_PtrSize+4,"Int"),"Int"),"Int")
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x40C, "Ptr", 0, "Ptr", &COMBOBOXEXITEM, "Ptr")
+        local COMBOBOXEXITEM := BufferAlloc(A_PtrSize==4?36:56)  ; COMBOBOXEXITEMW structure.
+        NumPut("Int", Image, "Int", SelImage, "Int", Overlay, NumPut("Ptr",Index,NumPut("UInt",(Image==""?0:2)|(SelImage==""?0:4)|(Overlay==""?0:8),COMBOBOXEXITEM)+A_PtrSize-4)+A_PtrSize+4)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40C, "Ptr", 0, "Ptr", COMBOBOXEXITEM, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-setitem
-    
-    /*
-        Gets the handle to an image list assigned to a ComboBoxEx control.
-        Return value:
-            Returns the handle to the image list assigned to the control if successful, or NULL otherwise.
-    */
-    GetImageList()
-    {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x403, "Ptr", 0, "Ptr", 0, "UPtr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-getimagelist
 
     /*
         Sets an image list for a ComboBoxEx control.
@@ -402,21 +367,21 @@ class ComboBoxEx
             ImageList:
                 A handle to the image list to be set for the control.
         Return value:
-            Returns the handle to the image list previously associated with the control, or returns NULL if no image list was previously set.
+            Returns the handle to the image list previously associated with the control, or returns zero if no image list was previously set.
         Remarks:
             The height of images in your image list might change the size requirements of the ComboBoxEx control.
             It is recommended that you resize the control after sending this message to ensure that it is displayed properly.
     */
     SetImageList(ImageList)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x402, "Ptr", 0, "Ptr", ImageList, "UPtr")
-    } ; https://msdn.microsoft.com/en-us/library/windows/desktop/bb775787.aspx
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x402, "Ptr", 0, "Ptr", ImageList, "UPtr")
+    } ; https://docs.microsoft.com/en-us/windows/win32/controls/cbem-setimagelist
 
     /*
         Determines the height of list items or the selection field in a combo box.
         Parameters:
             Component:
-                The combo box component whose height is to be retrieved. 
+                The combo box component whose height is to be retrieved.
                 0     Retrieves the height of list items.
                 1     Retrieves the height of the selection field.
         Return value:
@@ -425,8 +390,8 @@ class ComboBoxEx
     */
     GetItemHeight(Component := 0)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x154, "Ptr", Component, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cb-getitemheight
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x154, "Ptr", Component, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cb-getitemheight
 
     /*
         Set the height of list items or the selection field in a combo box.
@@ -445,20 +410,20 @@ class ComboBoxEx
     */
     SetItemHeight(Height, Component := 0)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x153, "Ptr", Component, "Ptr", Height, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cb-setitemheight
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x153, "Ptr", Component, "Ptr", Height, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cb-setitemheight
 
     /*
         Retrieves the zero-based index of the first visible item in the list box portion of this combo box.
         Initially, the item with index 0 is at the top of the list box, but if the list box contents have been scrolled, another item may be at the top.
         Return value:
-            If the message is successful, the return value is the index of the first visible item in the list box of this combo box.
+            If the method succeeds, the return value is the index of the first visible item in the list box of this combo box.
             If the message fails, the return value is -1 (CB_ERR).
     */
     GetTopIndex()
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x15B, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/en-us/windows/desktop/controls/cb-gettopindex
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x15B, "Ptr", 0, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/en-us/windows/win32/controls/cb-gettopindex
 
     /*
         Ensures that a particular item is visible in the list box of a combo box.
@@ -467,19 +432,19 @@ class ComboBoxEx
             Index:
                 Specifies the zero-based index of the list item.
         Return value:
-            If the message is successful, the return value is zero.
-            If the message fails, the return value is -1 (CB_ERR).
+            If the method succeeds, the return value is zero.
+            If the method fails, the return value is -1 (CB_ERR).
     */
     SetTopIndex(Index)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x15C, "Ptr", Index, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/en-us/windows/desktop/controls/cb-settopindex
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x15C, "Ptr", Index, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/en-us/windows/win32/controls/cb-settopindex
 
     /*
         Retrieves the zero-based index of the item that matches the specified associated value.
         Parameters:
             Data:
-                Specifies the value of type UPTR associated with the item.
+                The application-defined value associated with the item (integer number).
             Start:
                 Specifies the starting item index.
         Return value:
@@ -487,39 +452,40 @@ class ComboBoxEx
     */
     ItemFromData(Data, Start := 0)
     {
-        loop ( this.GetCount() - Start )
-            if ( DllCall("User32.dll\SendMessageW","Ptr",this.hWnd,"UInt",0x150,"Ptr",Start+A_Index-1,"Ptr",0,"UPtr") == Data )  ; GetItemData.
+        loop (this.Count - Start)
+            if (DllCall("User32.dll\SendMessageW","Ptr",this.hWnd,"UInt",0x150,"Ptr",Start+A_Index-1,"Ptr",0,"UPtr") == Data)
                 return A_Index - 1
         return -1  ; CB_ERR.
     } ; GetCount + GetItemData
 
     /*
-        Retrieves the application-supplied value associated with the specified item in the combo box.
+        Retrieves the application-defined value associated with the specified item from the combo box.
         Parameters:
-            Item:
-                The zero-based index of the item.
+            Index:
+                The zero-based index of the item whose application-defined value is to be retrieved.
         Return value:
-            Returns the UPTR value associated with the item. If an error occurs, it is -1 (CB_ERR).
+            Returns the application-defined value associated with the item (integer number).
+            If the method fails, the return value is -1 (CB_ERR).
     */
-    GetItemData(Item)
+    GetItemData(Index)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x150, "Ptr", 0, "Ptr",  0, "UPtr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cb-getitemdata
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x150, "Ptr", Index, "Ptr",  0, "UPtr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cb-getitemdata
 
     /*
-        Sets the value associated with the specified item in a combo box.
+        Changes the application-defined value associated with the specified item from the combo box.
         Parameters:
-            Item:
-                Specifies the item's zero-based index.
+            Index:
+                The zero-based index of the item whose application-defined value is to be changed.
             Data:
-                Specifies the new value of type UPTR to be associated with the item.
+                The new application-defined value associated with the item (integer number).
         Return value:
             If an error occurs, the return value is -1 (CB_ERR).
     */
-    SetItemData(Item, Data)
+    SetItemData(Index, Data)
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x151, "Ptr", Item, "Ptr", Data, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cb-setitemdata
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x151, "Ptr", Index, "Ptr", Data, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cb-setitemdata
 
     /*
         Sets the maximum number of visible rows in the list box.
@@ -531,53 +497,52 @@ class ComboBoxEx
     */
     SetVisibleRows(Rows)
     {
-        return ControlMove(,,, this.ctrl.pos.h+Rows*this.GetItemHeight()+2, this.GetComboControl())  ; CTRL_POS_HEIGHT+(ROWS*SINGLE_ITEM_HEIGHT)+BORDERS_PADDING_x1PX.
+        return ControlMove(,,, this.ctrl.pos.h+Rows*this.GetItemHeight()+2, this.ComboControl)  ; CTRL_POS_HEIGHT+(ROWS*SINGLE_ITEM_HEIGHT)+BORDERS_PADDING_x1PX.
     }
 
     /*
         Retrieves the screen coordinates of this combo box in its dropped-down state.
         Return value:
-            If the message succeeds, the return value is an object with the following keys: left, top, right and bottom.
-            If the message fails, the return value is zero.
+            If the method succeeds, the return value is an object with the properties L(eft), T(op), R(ight) and B(ottom).
+            If the method fails, the return value is zero.
     */
     GetDroppedCtrlRect()
     {
-        local RECT  ; https://msdn.microsoft.com/library/windows/desktop/dd162897.
-        VarSetCapacity(RECT, 16)
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x152, "Ptr", 0, "Ptr", &RECT, "Ptr")
-             ? { left:NumGet(&RECT,"Int"), top:NumGet(&RECT+4,"Int"), right:NumGet(&RECT+8,"Int"), bottom:NumGet(&RECT+12,"Int") }
-             : 0
-    } ; https://docs.microsoft.com/en-us/windows/desktop/controls/cb-getdroppedcontrolrect
+        local RECT := BufferAlloc(16)
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x152, "Ptr", 0, "Ptr", RECT, "Ptr")
+             ? {L:NumGet(RECT,"Int") , T:NumGet(RECT,4,"Int") , R:NumGet(RECT,8,"Int") , B:NumGet(RECT,12,"Int")}  ; Ok.
+             : 0                                                                                                   ; Error.
+    } ; https://docs.microsoft.com/en-us/windows/win32/controls/cb-getdroppedcontrolrect
 
     /*
-        Retrieves the client coordinates (relative to the GUI) of this combo box in its dropped-down state.
+        Retrieves the client coordinates (relative to the parent window) of the combo box in its dropped-down state.
         Return value:
-            If the message succeeds, the return value is an object with the following keys: X, Y, W and H.
-            If the message fails, the return value is zero.
+            If the method succeeds, the return value is an object with the properties X, Y, W and H.
+            If the method fails, the return value is zero.
     */
     GetDroppedCtrlRect2()
     {
-        local RECT  ; https://msdn.microsoft.com/library/windows/desktop/dd162897.
-        VarSetCapacity(RECT, 16)
-        local r := DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x152, "Ptr", 0, "Ptr", &RECT, "Ptr")
-            , o := { W:NumGet(&RECT+8,"Int")-NumGet(&RECT,"Int") , H:NumGet(&RECT+12,"Int")-NumGet(&RECT+4,"Int") }
-        if ( r := r ? DllCall("User32.dll\ScreenToClient","Ptr",this.hGui,"Ptr",&RECT,"Int") : FALSE )
-            o.X := NumGet(&RECT,"Int"), o.Y := NumGet(&RECT+4,"Int")
-        return r ? o : 0
-    } ; https://docs.microsoft.com/en-us/windows/desktop/controls/cb-getdroppedcontrolrect | https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-screentoclient
-    
+        local RECT := BufferAlloc(16)
+        if (!DllCall("User32.dll\SendMessageW","Ptr",this,"UInt",0x152,"Ptr",0,"Ptr",RECT,"Ptr"))
+            return 0
+        local R := Array(NumGet(RECT,8,"Int")-NumGet(RECT,"Int"), NumGet(RECT,12,"Int")-NumGet(RECT,4,"Int"))
+        return DllCall("User32.dll\ScreenToClient", "Ptr", this.Gui.hWnd, "Ptr", RECT)
+             ? {W:R[1] , H:R[2] , X:NumGet(RECT,"Int") , Y:NumGet(RECT,4,"Int")}  ; Ok.
+             : 0                                                                  ; Error.
+    } ; https://docs.microsoft.com/en-us/windows/win32/controls/cb-getdroppedcontrolrect
+
     /*
-        Determines whether the list box of a combo box is dropped down.
+        Determines whether the list box of the combo box is dropped down.
         Return value:
             If the list box is visible, the return value is TRUE; otherwise, it is FALSE.
     */
     GetDroppedState()
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x157, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/en-us/windows/desktop/controls/cb-getdroppedstate
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x157, "Ptr", 0, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/en-us/windows/win32/controls/cb-getdroppedstate
 
     /*
-        Shows or hides the list box of a combo box that has the CBS_DROPDOWN or CBS_DROPDOWNLIST style.
+        Shows or hides the list box of the combo box that has the CBS_DROPDOWN or CBS_DROPDOWNLIST style.
         Parameters:
             State:
                 A value that specifies whether the drop-down list box is to be shown or hidden.
@@ -585,116 +550,68 @@ class ComboBoxEx
                  0    Hide the list box. It can be any value evaluated as FALSE.
                  1    Show the list box. It can be any value evaluated as TRUE (except -1).
         Return value:
-            If the message succeeds, the return value is the previous state (TRUE/FALSE).
-            If the message fails, the return value is -1 (CB_ERR).
+            If the method succeeds, the return value is the previous state (TRUE/FALSE).
+            If the method fails, the return value is -1 (CB_ERR).
+        Remarks:
+            This method has no effect on a combo box created with the CBS_SIMPLE style.
     */
     ShowDropDown(State := 1)
     {
-        if ( !( WinGetStyle("ahk_id" . this.hWnd) & 0x2 ) )
+        if (!(WinGetStyle("ahk_id" . this.hWnd) & 0x2))
             return -1 ; CB_ERR.
         local old_state := this.GetDroppedState()  ; Gets the current state.
-        SendMessage(0x14F, State == -1 ? !old_state : !!State,, this)
+        SendMessage(0x14F, State==-1 ? !old_state : !!State,, this)
         return old_state
-    } ; https://docs.microsoft.com/en-us/windows/desktop/controls/cb-showdropdown
+    } ; https://docs.microsoft.com/en-us/windows/win32/controls/cb-showdropdown
 
     /*
-        Gets the width, in pixels, that the list box can be scrolled horizontally (the scrollable width). This is applicable only if the list box has a horizontal scroll bar.
+        Gets the width, in pixels, that the list box can be scrolled horizontally (the scrollable width).
+        This is applicable only if the list box has a horizontal scroll bar.
         Return value:
             The return value is the scrollable width, in pixels.
     */
     GetHorizontalExtent()
     {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x15d, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/en-us/windows/desktop/controls/cb-gethorizontalextent
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x15d, "Ptr", 0, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/en-us/windows/win32/controls/cb-gethorizontalextent
 
     /*
-        Finds the zero-based item of the first element whose text matches the specified string.
-        Parameters: 
+        Finds the zero-based index of the first item whose text matches the specified string.
+        Parameters:
             Text:
-                The string that will be searched.
-            Item:
-                The zero-based item from which to start searching (inclusive).
-                When the search reaches the end, it continues from the top to 'Item-1' (inclusive).
-                This parameter can be an object with the keys Start and End, that specify the exact range in which to perform the search.
+                A string containing the text that will be searched.
+            Start / End:
+                The search range (inclusive).
+                If «End» is omitted, it searches from «Start» to the end (it does not start from the beginning up to Start-1).
+                For example, to search the entire list starting with the item at index 5: (5,4).
             Mode:
-                Determines the behavior of the search. You can specify one or more of the following values.
-                0 = Finds the item whose text exactly matches the specified string.
-                1 = Finds the item whose text begins with the specified string.
-                2 = Finds the item whose text coincides partially with the specified string.
-                4 = Specifies a case-sensitive search.
+                Determines the behavior of the search. Any combination of the following flags may be specified.
+                0x0    Finds the item whose text exactly matches the specified string.
+                0x1    Compares only the portion of text specified in parameters «StartingPos» and «Length» (SubStr).
+                0x2    Finds the item whose text coincides partially with the specified string.
+                0x4    Specifies a case-sensitive search.
+                0x8    Use regular expression (RegExMath). Can only be combined with 0x1.
+            StartingPos / Length:
+                These parameters are passed to the built-in SubStr function when the 0x1 flag is used.
+                It is applied to the item text, and then used in the comparison with «Text».
         Return value:
             Returns the zero-based index of the matching item. -1 if the search has not been successful.
     */
-    FindText(ByRef Text, Item := 0, Mode := 0)
+    FindText(Text, Start := 0, End := -1, Mode := 0, StartingPos := 0, Length := 0)
     {
-        local o := [isobject(Item)?Item:{start:Item,end:-1},strlen(Text)]
-        loop ( this.GetCount() ) {
-            if ( ( o[3] := A_Index - 1 ) < o[1].start )
-                continue
-            if ( o[3] == o[1].end )
-                break
-            if ( Mode & 2 ) {
-                if ( InStr(this.GetText(o[3]),Text,Mode&4) )
-                    return o[3]
+        local l := this.count-1, r := Array(Start<0?0:Start>l?l:Start,End<0||End>l?l:End)
+        , s, re := Mode&8, cs := Mode&4, ps := Mode&2, bs := Mode&1, i := 0
+        loop (r[2]<r[1] ? l-r[1]+r[2]+2 : r[2]-r[1]+1) {
+            if (re) {
+                if (RegExMatch(bs?SubStr(this.GetItemText(r[1]),StartingPos,Length):this.GetItemText(r[1]),Text))
+                    return r[1]  ; Ok.
             } else {
-                if (  (Mode&4) && Text == this.GetText(o[3],Mode&1?o[2]:-1) )
-                || ( !(Mode&4) && Text  = this.GetText(o[3],Mode&1?o[2]:-1) )
-                    return o[3]
-        }   } return isobject(Item) ? -1 : this.FindText(Text,{start:0,end:o[1].start},Mode)
-    } ; GetText
-
-    /*
-        Finds the first list box string in a combo box that matches the string specified in the 'String' parameter.
-        Parameters:
-            String:
-                The string that contains the characters for which to search.
-                The search is not case sensitive, so this string can contain any combination of uppercase and lowercase letters.
-            Item:
-                The zero-based index of the item preceding the first item to be searched.
-                When the search reaches the bottom of the list box, it continues from the top of the list box back to the item specified by the 'Item' parameter.
-                If 'Item' is -1, the entire list box is searched from the beginning.
-            Exact:
-                By default, the search looks for an item beginning with the characters in the specified string.
-                If set to TRUE, the search looks for an item that exactly matches the specified string.
-        Return value:
-            The return value is the zero-based index of the matching item. If the search is unsuccessful, it is -1 (CB_ERR).
-    */
-    ;FindString(ByRef String, Item := -1, Exact := FALSE)  ; It seems not to work.
-    ;{
-    ;    return Exact ? DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x158, "Ptr", Item, "Ptr", &String, "Ptr")
-    ;                 : DllCall("User32.dll\SendMessageW", "Ptr", this.hWnd, "UInt", 0x14C, "Ptr", Item, "Ptr", &String, "Ptr")
-    ;} ; https://docs.microsoft.com/en-us/windows/desktop/controls/cb-findstringexact | https://docs.microsoft.com/en-us/windows/desktop/controls/cb-findstring
-
-    /*
-        Gets the extended styles that are in use for this ComboBoxEx control.
-        Return value:
-            Returns a value that contains the ComboBoxEx control extended styles in use for the control.
-    */
-    GetExStyle()
-    {
-        return SendMessage(0x409,,, this)
-    } ; https://docs.microsoft.com/en-us/windows/desktop/controls/cbem-getextendedstyle
-
-    /*
-        Sets extended styles within this ComboBoxEx control.
-        Parameters:
-            Value:
-                A value that contains the ComboBoxEx Control Extended Styles to set for the control.
-            Mask:
-                A value that indicates which styles in 'Value' are to be affected.
-                Only the extended styles in 'Mask' will be changed.
-                If this parameter is zero, then all of the styles in 'Value' will be affected.
-        Return value:
-            Returns a value that contains the extended styles previously used for the control.
-        Remarks:
-            'Mask' enables you to modify one or more extended styles without having to retrieve the existing styles first.
-            For example, if you pass CBES_EX_NOEDITIMAGE for 'Mask' and 0 for lParam, the CBES_EX_NOEDITIMAGE style will be cleared, but all other styles will remain the same.
-            If you try to set an extended style for a ComboBoxEx control created with the CBS_SIMPLE style, it may not repaint properly.
-    */
-    SetExStyle(Value, Mask := 0)
-    {
-        return SendMessage(0x40E, Mask, Value, this)
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/cbem-setextendedstyle
+                s := bs ? SubStr(this.GetItemText(r[1]),StartingPos,Length) : this.GetItemText(r[1])
+                if (ps ? InStr(s,Text,cs) : !StrCompare(s,Text,cs))
+                    return r[1]  ; Ok.
+            } r[1] := r[1] == l ? 0 : r[1] + 1
+        } return -1  ; Error.
+    }
 
     /*
         Registers a function or method to be called when the given event is raised by this control.
@@ -726,51 +643,110 @@ class ComboBoxEx
                     Sent when the user selects an item, but then selects another control or closes the dialog box. It indicates the user's initial selection is to be ignored.
             Callback / AddRemove:
                 See OnCommand (Gui) in the AutoHotkey documentation.
-                Link: https://lexikos.github.io/v2/docs/objects/GuiOnCommand.htm.
+                Reference: https://lexikos.github.io/v2/docs/objects/GuiOnCommand.htm.
         Remarks:
-            The callback function receives a single parameter: the control object. To retrieve this ComboBoxEx object, use: 'CBEX := new ComboBoxEx(GuiCtrlObj)'.
+            The callback function receives a single parameter: the control object.
     */
     OnEvent(EventName, Callback, AddRemove := 1)
     {
         loop parse, "SelChange|DoubleClick|Focus|LoseFocus|EditChange|EditUpdate|DropDown|CloseUp|SelEndOk|SelEndCancel", "|"
-            if ( A_LoopField = EventName )
+            if (A_LoopField = EventName)
                 return this.Ctrl.OnCommand(A_Index, Callback, AddRemove)
-        throw Exception("ComboBoxEx class OnEvent method invalid parameter #1.", -1, "Invalid event name.")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/bumper-combobox-control-reference-notifications
+        throw Exception("IComboBoxEx.OnEvent() - Invalid parameter #1.", -1)
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/bumper-combobox-control-reference-notifications
 
     /*
-        Allow or prevent changes in that control to be redrawn.
+        Retrieves the extended styles currently in use for the combo box control.
+        Return value:
+            Returns a value that represents the extended styles currently in use for the combo box control.
+    */
+    GetExStyle()
+    {
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x409, "Ptr", 0, "Ptr", 0, "UPtr")
+    } ; https://docs.microsoft.com/en-us/windows/win32/controls/cbem-getextendedstyle
+
+    /*
+        Sets the extended styles for the combo box control.
+        Parameters:
+            Value:
+                A value that contains the ComboBoxEx control extended styles to set for the control.
+                0x00000001  CBES_EX_NOEDITIMAGE          The edit box and the dropdown list will not display item images.
+                0x00000002  CBES_EX_NOEDITIMAGEINDENT    The edit box and the dropdown list will not display item images.
+                0x00000004  CBES_EX_PATHWORDBREAKPROC    The edit box will use the slash (/), backslash (\), and period (.) characters as word delimiters.
+                                                         This makes keyboard shortcuts for word-by-word cursor movement effective in path names and URLs.
+                0x00000008  CBES_EX_NOSIZELIMIT          Allows the ComboBoxEx control to be vertically sized smaller than its contained combo box control.
+                                                         If the ComboBoxEx is sized smaller than the combo box, the combo box will be clipped.
+                0x00000010  CBES_EX_CASESENSITIVE        BSTR searches in the list will be case sensitive. This includes searches as a result of text being
+                                                         typed in the edit box and the CB_FINDSTRINGEXACT message.
+                0x00000020  CBES_EX_TEXTENDELLIPSIS      Causes items in the drop-down list and the edit box (when the edit box is read only) to be truncated
+                                                         with an ellipsis (...) rather than just clipped by the edge of the control. This is useful when the
+                                                         control needs to be set to a fixed width, yet the entries in the list may be long.
+            Mask:
+                A value that indicates which extended styles in «Value» are to be affected. Only the extended styles in «Mask» will be changed.
+                If this parameter is zero, then all of the extended styles in «Value» will be affected.
+        Return value:
+            Returns a value that contains the extended styles previously used for the control.
+        Remarks:
+            «Mask» enables you to modify one or more extended styles without having to retrieve the existing styles first.
+            For example, if you pass CBES_EX_NOEDITIMAGE for «Mask» and 0 for «Value», the CBES_EX_NOEDITIMAGE style will be cleared, but all other styles will remain the same.
+            If you try to set an extended style for a ComboBoxEx control created with the CBS_SIMPLE style, it may not repaint properly.
+            The CBS_SIMPLE style also does not work properly with the CBES_EX_PATHWORDBREAKPROC extended style.
+        ComboBoxEx Control Extended Styles:
+            https://docs.microsoft.com/es-es/windows/win32/controls/comboboxex-control-extended-styles
+    */
+    SetExStyle(Value, Mask := 0)
+    {
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x40E, "Ptr", Mask, "Ptr", Value, "UPtr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-setextendedstyle
+
+    /*
+        Allow or prevent changes in the control to be redrawn.
         Parameters:
             Mode:
-                The redraw state.
-                0 (FALSE)       The content cannot be redrawn after a change.
-                1 (TRUE)        The content can be redrawn after a change.
+                FALSE    The content cannot be redrawn after a change.
+                TRUE     The content can be redrawn after a change.
     */
     SetRedraw(Mode)
     {
         this.ShowDropDown(0)
-        SendMessage(0xB, !!Mode,, this)
-        SendMessage(0xB, !!Mode,, this.GetEditControl())
-        SendMessage(0xB, !!Mode,, this.GetComboControl())
-        if ( Mode )
-            DllCall("User32.dll\InvalidateRect", "Ptr", this.hWnd, "Ptr", 0, "Int", TRUE, "Int")
-           ,DllCall("User32.dll\UpdateWindow", "Ptr", this.hWnd, "Int")
-    } ; https://docs.microsoft.com/en-us/windows/desktop/gdi/wm-setredraw
+        loop parse, this.hWnd . A_Tab . this.EditControl . A_Tab . this.ComboControl, A_Tab
+            DllCall("User32.dll\SendMessageW", "Ptr", A_LoopField, "UInt", 0xB, "Ptr", !!Mode, "Ptr", 0, "Ptr")
+        if (Mode)
+            DllCall("User32.dll\InvalidateRect", "Ptr", this, "Ptr", 0, "Int", TRUE)
+           ,DllCall("User32.dll\UpdateWindow", "Ptr", this)
+    } ; https://docs.microsoft.com/en-us/windows/win32/gdi/wm-setredraw
 
 
     ; ===================================================================================================================
     ; PROPERTIES
-    ; ===================================================================================================================    
-    Text[Item := -1]
+    ; ===================================================================================================================
+    /*
+        Retrieves the number of items in the list box of the combo box.
+    */
+    Count[] => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x146, "Ptr", 0, "Ptr", 0, "Ptr")
+    ; https://docs.microsoft.com/es-es/windows/win32/controls/cb-getcount
+
+    /*
+        Retrieves or changes the the currently selected item.
+    */
+    Selection[]
     {
-        get {
-            return this.GetText(Item == -1 ? this.GetEditControl() ? -1 : this.GetCurSel() : Item)
-        }
-        set {
-            this.SetText(Item == -1 ? this.GetEditControl() ? -1 : this.GetCurSel() : Item, string(value))
-            return value
-        }
-    }
+        get => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x147, "Ptr", 0x000, "Ptr", 0, "Ptr")
+        set => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x14E, "Ptr", Value, "Ptr", 0, "Ptr")
+    } ; GetCurSel + SetCurSel
+
+    /*
+        Retrieves the handle to the child combo box control within the ComboBoxEx control.
+    */
+    ComboControl[] => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x406, "Ptr", 0, "Ptr", 0, "UPtr")
+    ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-getcombocontrol
+
+    /*
+        Retrieves the handle to the edit control portion of a ComboBoxEx control if it uses the CBS_DROPDOWN style..
+        A ComboBoxEx control uses an edit box when it is set to the CBS_DROPDOWN (2) style.
+    */
+    EditControl[] => ControlGetHwnd("Edit1", "ahk_id" . this.hwnd)
+    ; https://docs.microsoft.com/es-es/windows/win32/controls/cbem-geteditcontrol
 
     /*
         Retrieves the current focus state of the control.
@@ -783,8 +759,33 @@ class ComboBoxEx
     {
         get {
             local hWnd := ControlGetFocus("ahk_id" . this.Gui.hWnd)
-            return hWnd == this.GetComboControl() ? 1 : hWnd == this.GetEditControl() ? 2 : hWnd == this.hWnd ? 3 : 0
+            return hWnd == this.ComboControl ? 1 : hWnd == this.EditControl ? 2 : hWnd == this.hWnd ? 3 : 0
         }
+    }
+
+
+    ; ===================================================================================================================
+    ; SPECIAL METHODS AND PROPERTIES
+    ; ===================================================================================================================
+    /*
+        Enumerates items from the combo box control.
+        Syntax:
+            for ItemIndex, ItemText in IComboBoxEx
+            for ItemIndex in IComboBoxEx
+    */
+    __Enum(NumberOfVars)
+    {
+        static Enumerator := Func("IComboBoxEx_Enumerator")
+        return Enumerator.Bind(this, NumberOfVars)
+    }
+
+    /*
+        Retrieves or changes the text of the specified item.
+    */
+    __Item[Index]
+    {
+        get => this.GetItemText(Index==-1 ? this.EditControl?-1:this.Selection : Index)
+        set => this.SetItemText(Index==-1 ? this.EditControl?-1:this.Selection : Index, Value)
     }
 }
 
@@ -792,15 +793,43 @@ class ComboBoxEx
 
 
 
-ComboBoxEx_OnMessage(wParam, lParam, Msg, hWnd)
+; #######################################################################################################################
+; FUNCTIONS                                                                                                             #
+; #######################################################################################################################
+OnMessage(0x02, "IComboBoxEx_OnMessage")  ; WM_DESTROY.
+
+IComboBoxEx_OnMessage(wParam, lParam, Message, hWnd)
 {
-    global ComboBoxEx  ; Class.
+    global IComboBoxEx
     local
 
-    if ( Msg == 0x02 )  ; WM_DESTROY.
+    switch Message
     {
-        for ctrl_hwnd, ctrl_obj in ComboBoxEx.Instance.Clone()
-            if ( ctrl_obj.hGui == hWnd )
+    case 0x0002:  ; WM_DESTROY.
+        for ctrl_hwnd, ctrl_obj in IComboBoxEx.Instance.Clone()
+        {
+            if (ctrl_obj.Gui.Hwnd == hWnd)
+            {
                 ctrl_obj.Destroy()
+            }
+        }
     }
+}
+
+IComboBoxEx_Enumerator(this, NumberOfVars, ByRef Key, ByRef Value := "")
+{
+    Key := A_Index - 1  ; Zero-based item index.
+    if (NumberOfVars == 2)
+        Value := this.GetItemText(Key)  ; Item text.
+    return A_Index <= this.Count
+}
+
+CreateComboBox(Gui, Options, Items*)
+{
+    return IComboBoxEx.New(Gui, Options, Items*)
+}
+
+ComboBoxFromHwnd(Hwnd)
+{
+    return IComboBoxEx.Instance[IsObject(Hwnd)?Hwnd.hWnd:Hwnd]
 }

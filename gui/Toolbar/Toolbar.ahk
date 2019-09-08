@@ -1,8 +1,12 @@
+; AutoHotkey v2.0-a104-3e7a969d.
+
 /*
+    Encapsulates the creation and manipulation by means of messages of a standart Toolbar control in a class.
     Remarks:
         Item indexes are zero based.
         Items can be identified by their index or their command identifier.
         DllCall is used instead of SendMessage to improve performance.
+        Include this file in the the Auto-execute Section of the script.
     Toolbar Control Reference:
         https://docs.microsoft.com/en-us/windows/desktop/controls/toolbar-control-reference.
 */
@@ -20,8 +24,8 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     ; INSTANCE VARIABLES (readonly)
     ; ===================================================================================================================
     Gui          := 0         ; The Gui object associated with this control.
-    Ctrl         := 0         ; This Gui control class object.
-    hWnd         := 0         ; The Handle of this control.
+    Ctrl         := 0         ; The Gui control class object.
+    hWnd         := 0         ; The control handle.
 
 
     ; ===================================================================================================================
@@ -69,10 +73,12 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         this.Ctrl := this.Gui.AddCustom("+" . style . A_Space . Options . " Class" . IToolbar.ClassName)
         IToolbar.Instance[this.Ptr:=this.hWnd:=this.Ctrl.hWnd] := this
 
-        ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-buttonstructsize.
+        ; TB_BUTTONSTRUCTSIZE message.
+        ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-buttonstructsize.
         SendMessage(0x41E, 8+3*A_PtrSize,, this)  ; Specifies the size of the TBBUTTON structure.
 
-        ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setunicodeformat.
+        ; TB_SETUNICODEFORMAT message.
+        ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-setunicodeformat.
         SendMessage(0x2005, TRUE,, this)  ; Sets the Unicode character format flag for the control.
     }
 
@@ -93,10 +99,10 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     /*
         Inserts a new button in this toolbar.
         Parameters:
-            Item:
-                The zero-based index of a button.
+            Index:
+                The zero-based index of the button.
                 The method inserts the new button to the left of this button.
-                A value of -1 inserts the button at the end.
+                To insert an item at the end of the list, set the Index parameter to -1.
             CommandID:
                 A command identifier that will be associated with the button.
                 This identifier is used in a WM_COMMAND message when the button is clicked.
@@ -134,14 +140,17 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
                 Application-defined value associated with the Toolbar button.
                 This value must be any integer number. By default it is zero.
         Return value:
-            Returns TRUE if successful, or FALSE otherwise.
+            If the method succeeds, the return value is the index at which the new button was inserted.
+            If the method fails, the return value is -1.
     */
-    Add(Item := -1, CommandID := 0, Text := "`b", Image := -2, State := 4, Style := 0, Data := 0)
+    Add(Index := -1, CommandID := 0, Text := "`b", Image := -2, State := 4, Style := 0, Data := 0)
     {
         local TBBUTTON := BufferAlloc(8+3*A_PtrSize)  ; TBBUTTON structure (https://docs.microsoft.com/en-us/windows/win32/api/commctrl/ns-commctrl-tbbutton).
         Style |= (Text == "`b"), NumPut("Ptr",Data,"Ptr",type(Text)=="Integer"?Text:&Text,,NumPut("Int"
         ,Style&1?abs(Image):Image,"Int",CommandID,"UCHar",State,"UCHar",Style,TBBUTTON)-2+A_PtrSize)
-        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x443, "Ptr", Item, "Ptr", TBBUTTON, "Ptr")
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x443, "Ptr", Index, "Ptr", TBBUTTON, "Ptr")
+             ? Index  ; Ok.
+             : -1     ; Error.
     } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-insertbutton
 
     /*
@@ -158,7 +167,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-deletebutton
 
     /*
-        Deletes all buttons from the toolbar.
+        Removes all buttons from the toolbar.
     */
     DeleteAll()
     {
@@ -182,10 +191,9 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     */
     GetButtonText(Index)
     {
-        local Buffer       := BufferAlloc(1024)                ; Character buffer (Up to 512 characters).
+        local Buffer       := BufferAlloc(1024)                ; Character buffer (up to 512 characters).
         local TBBUTTONINFO := BufferAlloc(A_PtrSize==4?32:48)  ; TBBUTTONINFOW structure.
-        NumPut("UPtr", Buffer.Ptr, "Int", Buffer.Size//2, NumPut("UInt",TBBUTTONINFO.Size,"UInt",0x80000002,TBBUTTONINFO)+8+2*A_PtrSize)
-       ,NumPut("UShort", 0x0000, Buffer)  ; Write a null character at the beginning, to return an empty string in case of error.
+        NumPut("UPtr", NumPut("UShort",0,Buffer)-2, "Int", Buffer.Size//2, NumPut("UInt",TBBUTTONINFO.Size,"UInt",0x80000002,TBBUTTONINFO)+8+2*A_PtrSize)
        ,DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x43F, "Ptr", Index, "Ptr", TBBUTTONINFO, "Ptr")
         return StrGet(Buffer)
     } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-getbuttoninfo
@@ -199,7 +207,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
                 A string that contains the new text for the button.
                 This parameter can be zero or a pointer to a null-terminated string.
         Return value:
-            Returns nonzero if successful, or zero otherwise.
+            Returns TRUE if successful, or FALSE otherwise.
     */
     SetButtonText(Index, Text)
     {
@@ -290,9 +298,9 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
             Index:
                 The zero-based index of the button whose application-defined value is to be changed.
             Data:
-                Application-defined value associated with the button (integer number).
+                The new Application-defined value associated with the button (integer number).
         Return value:
-            Returns nonzero if successful, or zero otherwise.
+            Returns TRUE if successful, or FALSE otherwise.
     */
     SetButtonData(Index, Data)
     {
@@ -328,7 +336,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
                 The new image index of the button.
                 A value of -2 (I_IMAGENONE) indicates that the button does not have an image. The button layout will not include any space for a bitmap, only text.
         Return value:
-            Returns nonzero if successful, or zero otherwise.
+            Returns TRUE if successful, or FALSE otherwise.
     */
     SetButtonImage(Index, Image)
     {
@@ -345,7 +353,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
             ToIndex:
                 The zero-based index where the button will be moved.
         Return value:
-            Returns nonzero if successful, or zero otherwise.
+            Returns TRUE if successful, or FALSE otherwise.
     */
     MoveButton(FromIndex, ToIndex)
     {
@@ -406,7 +414,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
             Max:
                 Specifies the maximum button width, in pixels. If button text is too wide, the control displays it with ellipsis points.
         Return value:
-            Returns nonzero if successful, or zero otherwise.
+            Returns TRUE if successful, or FALSE otherwise.
     */
     SetButtonWidth(Min, Max)
     {
@@ -451,7 +459,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
             Height:
                 Specifies the height, in pixels, of the buttons.
         Return value:
-            Returns nonzero if successful, or zero otherwise.
+            Returns TRUE if successful, or FALSE otherwise.
     */
     SetButtonSize(Width, Height)
     {
@@ -477,7 +485,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
             Value:
                 Value specifying the indentation, in pixels.
         Return value:
-            Returns nonzero if successful, or zero otherwise.
+            Returns TRUE if successful, or FALSE otherwise.
     */
     SetIndent(Value)
     {
@@ -631,7 +639,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
                 0           The button is set to its default state.
                 1           The button is highlighted.
         Return value:
-            Returns nonzero if successful, or zero otherwise.
+            Returns TRUE if successful, or FALSE otherwise.
     */
     HighlightButton(CommandID, Value)
     {
@@ -857,79 +865,6 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-loadimages
 
     /*
-        Retrieves the styles currently in use for the toolbar control.
-        Return value:
-            Returns a value that is a combination of toolbar control styles.
-        Toolbar Control Styles:
-            https://docs.microsoft.com/es-es/windows/desktop/Controls/toolbar-control-and-button-styles.
-    */
-    GetStyle()
-    {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x439, "Ptr", 0, "Ptr", 0, "UPtr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getstyle
-
-    /*
-        Sets the style for the toolbar control.
-        Parameters:
-            Style:
-                Value specifying the styles to be set for the control. This value can be a combination of toolbar control styles.
-            Mode:
-                Sets the mode in which the style is to be set. By default it is replaced.
-                -1      Toggles the specified style.
-                 1      Adds the specified style.
-                 2      Removes the specified style.
-        Return value:
-            Returns a value that represents the previous styles. This value can be a combination of styles.
-    */
-    SetStyle(Style, Mode := 0)
-    {
-        local cstyle := this.GetStyle()
-        Style := Mode == 1 ? cstyle|Style : Mode == 2 ? cstyle&~Style : Mode == -1 ? cstyle&Style?cstyle&~Style:cstyle|Style : Style
-        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x438, "Ptr", 0, "Ptr", Style, "Ptr")
-        return cstyle
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setstyle
-
-    /*
-        Retrieves the extended styles for a toolbar control.
-        Return value:
-            Returns a value that represents the styles currently in use for the toolbar control. This value can be a combination of extended styles.
-        Toolbar Control Extended Styles:
-            https://docs.microsoft.com/es-es/windows/desktop/Controls/toolbar-extended-styles.
-    */
-    GetExStyle()
-    {
-        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x455, "Ptr", 0, "Ptr", 0, "UPtr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getextendedstyle
-
-    /*
-        Sets the extended styles for a toolbar control.
-        Parameters:
-            ExStyle:
-                Value specifying the new extended styles. This parameter can be a combination of extended styles.
-                0x01  TBSTYLE_EX_DRAWDDARROWS         Allows buttons to have a separate dropdown arrow. Buttons that have the BTNS_DROPDOWN style will be drawn with a dropdown arrow in a separate section, to the right of the button.
-                                                      If the arrow is clicked, only the arrow portion of the button will depress, and the toolbar control will send a TBN_DROPDOWN notification code to prompt the application to display the dropdown menu.
-                                                      If the main part of the button is clicked, the toolbar control sends a WM_COMMAND message with the button's ID. The application normally responds by launching the first command on the menu.
-                0x08  TBSTYLE_EX_MIXEDBUTTONS         Allows you to set text for all buttons, but only display it for those buttons with the BTNS_SHOWTEXT button style.
-                                                      With this extended style, text that is set but not displayed on a button will automatically be used as the button's tooltip text.
-                                                      Your application only needs to handle TBN_GETINFOTIP or or TTN_GETDISPINFO if it needs more flexibility in specifying the tooltip text.
-                                                      The TBSTYLE_LIST style must also be set (Specify 'List' in the options when creating the control).
-                0x10  TBSTYLE_EX_HIDECLIPPEDBUTTONS   This style hides partially clipped buttons. The most common use of this style is for toolbars that are part of a rebar control.
-                                                      If an adjacent band covers part of a button, the button will not be displayed.
-                                                      However, if the rebar band has the RBBS_USECHEVRON style, the button will be displayed on the chevron's dropdown menu.
-                0x80  TBSTYLE_EX_DOUBLEBUFFER         This style requires the toolbar to be double buffered. Double buffering is a mechanism that detects when the toolbar has changed.
-            Mode:
-                See the SetStyle method.
-        Return value:
-            Returns a value that represents the previous extended styles. This value can be a combination of extended styles.
-    */
-    SetExStyle(ExStyle, Mode := 0)
-    {
-        local cstyle := this.GetExStyle()
-        ExStyle := Mode == 1 ? cstyle|ExStyle : Mode == 2 ? cstyle&~ExStyle : Mode == -1 ? cstyle&ExStyle?cstyle&~ExStyle:cstyle|ExStyle : ExStyle
-        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x454, "Ptr", 0, "Ptr", ExStyle, "UPtr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-setextendedstyle
-
-    /*
         Retrieves the current insertion mark for the toolbar.
         Return value:
             Returns an object with the properties 'Index' and 'Flags'.
@@ -1004,49 +939,6 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getobject
 
     /*
-        Finds the zero-based index of the first item whose display text matches the specified string.
-        Parameters:
-            Text:
-                A string containing the text that will be searched.
-            Min / Max:
-                The search range (inclusive).
-            Mode:
-                Determines the behavior of the search. You can specify one or more of the following flags.
-                0 = Finds the item whose text exactly matches the specified string.
-                1 = Finds the item whose text begins with the specified string.
-                2 = Finds the item whose text coincides partially with the specified string.
-                4 = Specifies a case-sensitive search.
-        Return value:
-            Returns the zero-based index of the matching item. -1 if the search has not been successful.
-    */
-    FindText(Text, Min := 0, Max := -1, Mode := 0)
-    {
-        local Str, Count := this.Count, Index := 0 * ( Max:=Max<0||Max>Count?Count:Max ) - 1
-        while ( ( ++Index < Count ) && ( Index < Max ) )
-            if ( Index >= Min ) {
-                Str := Mode&1&&!(Mode&2)?SubStr(this.GetButtonText(Index),1,StrLen(Text)):this.GetButtonText(Index)
-                if ( Mode&2?InStr(Str,Text,Mode&4):Mode&4?Str==Text:Str=Text )
-                    return Index  ; OK.
-        } return -1  ; ERROR.
-    }
-
-    /*
-        Allow or prevent changes in the control to be redrawn.
-        Parameters:
-            Mode:
-                The redraw state.
-                0 (FALSE)       The content cannot be redrawn after a change.
-                1 (TRUE)        The content can be redrawn after a change.
-    */
-    SetRedraw(Mode)
-    {
-        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0xB, "Ptr", !!Mode, "Ptr", 0, "Ptr")
-        if (Mode)
-            DllCall("User32.dll\InvalidateRect", "Ptr", this, "Ptr", 0, "Int", TRUE)
-           ,DllCall("User32.dll\UpdateWindow", "Ptr", this)
-    } ; https://docs.microsoft.com/en-us/windows/desktop/gdi/wm-setredraw
-
-    /*
         Retrieves the index of the hot item in the toolbar.
         Return value:
             Returns the index of the hot item, or -1 if no hot item is set.
@@ -1087,6 +979,44 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-sethotitem2
 
     /*
+        Finds the zero-based index of the first button whose text matches the specified string.
+        Parameters:
+            Text:
+                A string containing the text that will be searched.
+            Start / End:
+                The search range (inclusive).
+                If «End» is omitted, it searches from «Start» to the end (it does not start from the beginning up to Start-1).
+                For example, to search the entire list starting with the item at index 5: (5,4).
+            Mode:
+                Determines the behavior of the search. Any combination of the following flags may be specified.
+                0x0    Finds the item whose text exactly matches the specified string.
+                0x1    Compares only the portion of text specified in parameters «StartingPos» and «Length» (SubStr).
+                0x2    Finds the button whose text coincides partially with the specified string.
+                0x4    Specifies a case-sensitive search.
+                0x8    Use regular expression (RegExMath). Can only be combined with 0x1.
+            StartingPos / Length:
+                These parameters are passed to the built-in SubStr function when the 0x1 flag is used.
+                It is applied in the button text, and then used in the comparison with «Text».
+        Return value:
+            Returns the zero-based index of the matching item. -1 if the search has not been successful.
+    */
+    FindText(Text, Start := 0, End := -1, Mode := 0, StartingPos := 0, Length := 0)
+    {
+        local l := this.count-1, r := Array(Start<0?0:Start>l?l:Start,End<0||End>l?l:End)
+        , s, re := Mode&8, cs := Mode&4, ps := Mode&2, bs := Mode&1, i := 0
+        loop (r[2]<r[1] ? l-r[1]+r[2]+2 : r[2]-r[1]+1) {
+            if (re) {
+                if (RegExMatch(bs?SubStr(this.GetButtonText(r[1]),StartingPos,Length):this.GetButtonText(r[1]),Text))
+                    return r[1]  ; Ok.
+            } else {
+                s := bs ? SubStr(this.GetButtonText(r[1]),StartingPos,Length) : this.GetButtonText(r[1])
+                if (ps ? InStr(s,Text,cs) : !StrCompare(s,Text,cs))
+                    return r[1]  ; Ok.
+            } r[1] := r[1] == l ? 0 : r[1] + 1
+        } return -1  ; Error.
+    }
+
+    /*
         Registers a function or method to be called when the given event is raised by this control.
         Note:
             In order not to complicate things, I have decided not to handle any message automatically.
@@ -1103,6 +1033,92 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         this.Ctrl.OnNotify(EventName, Callback, AddRemove)
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/bumper-toolbar-control-reference-notifications
 
+    /*
+        Retrieves the styles currently in use for the toolbar control.
+        Return value:
+            Returns a value that represents the styles currently in use for the toolbar control.
+    */
+    GetStyle()
+    {
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x439, "Ptr", 0, "Ptr", 0, "UPtr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-getstyle
+
+    /*
+        Sets the style for the toolbar control.
+        Parameters:
+            Value:
+                A value that contains the Toolbar control styles to set for the control.
+            Mask:
+                A value that indicates which styles in «Value» are to be affected. Only the extended styles in «Mask» will be changed.
+                If this parameter is zero, then all of the styles in «Value» will be affected.
+        Return value:
+            Returns a value that contains the extended styles previously used for the control.
+        Toolbar Control Styles:
+            https://docs.microsoft.com/es-es/windows/desktop/Controls/toolbar-control-and-button-styles.
+    */
+    SetStyle(Value, Mask := 0)
+    {
+        local Style := DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x439, "Ptr", 0, "Ptr", 0, "UPtr")
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x438, "Ptr", 0, "Ptr", (Style|(Value&~Mask))&~(Mask&~Value), "Ptr")
+        return Style
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-setstyle
+
+    /*
+        Retrieves the extended styles currently in use for the toolbar control.
+        Return value:
+            Returns a value that represents the extended styles currently in use for the toolbar control.
+    */
+    GetExStyle()
+    {
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x455, "Ptr", 0, "Ptr", 0, "UPtr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-getextendedstyle
+
+    /*
+        Sets the extended styles for the toolbar control.
+        Parameters:
+            Value:
+                A value that contains the Toolbar control extended styles to set for the control.
+                0x01  TBSTYLE_EX_DRAWDDARROWS         Allows buttons to have a separate dropdown arrow. Buttons that have the BTNS_DROPDOWN style will be drawn with a dropdown arrow in a separate section, to the right of the button.
+                                                      If the arrow is clicked, only the arrow portion of the button will depress, and the toolbar control will send a TBN_DROPDOWN notification code to prompt the application to display the dropdown menu.
+                                                      If the main part of the button is clicked, the toolbar control sends a WM_COMMAND message with the button's ID. The application normally responds by launching the first command on the menu.
+                0x08  TBSTYLE_EX_MIXEDBUTTONS         Allows you to set text for all buttons, but only display it for those buttons with the BTNS_SHOWTEXT button style.
+                                                      With this extended style, text that is set but not displayed on a button will automatically be used as the button's tooltip text.
+                                                      Your application only needs to handle TBN_GETINFOTIP or or TTN_GETDISPINFO if it needs more flexibility in specifying the tooltip text.
+                                                      The TBSTYLE_LIST style must also be set (Specify 'List' in the options when creating the control).
+                0x10  TBSTYLE_EX_HIDECLIPPEDBUTTONS   This style hides partially clipped buttons. The most common use of this style is for toolbars that are part of a rebar control.
+                                                      If an adjacent band covers part of a button, the button will not be displayed.
+                                                      However, if the rebar band has the RBBS_USECHEVRON style, the button will be displayed on the chevron's dropdown menu.
+                0x80  TBSTYLE_EX_DOUBLEBUFFER         This style requires the toolbar to be double buffered. Double buffering is a mechanism that detects when the toolbar has changed.
+            Mask:
+                A value that indicates which extended styles in «Value» are to be affected. Only the extended styles in «Mask» will be changed.
+                If this parameter is zero, then all of the extended styles in «Value» will be affected.
+        Return value:
+            Returns a value that contains the extended styles previously used for the control.
+        Toolbar Control Extended Styles:
+            https://docs.microsoft.com/es-es/windows/desktop/Controls/toolbar-extended-styles.
+    */
+    SetExStyle(Value, Mask := 0)
+    {
+        ExStyle := DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x455, "Ptr", 0, "Ptr", 0, "UPtr")
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x454, "Ptr", 0, "Ptr", (ExStyle|(Value&~Mask))&~(Mask&~Value), "Ptr")
+        return ExStyle
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-setextendedstyle
+
+    /*
+        Allow or prevent changes in the control to be redrawn.
+        Parameters:
+            Mode:
+                FALSE    The content cannot be redrawn after a change.
+                TRUE     The content can be redrawn after a change.
+    */
+    SetRedraw(Mode)
+    {
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0xB, "Ptr", !!Mode, "Ptr", 0, "Ptr")
+        if (Mode)
+            DllCall("User32.dll\InvalidateRect", "Ptr", this, "Ptr", 0, "Int", TRUE)
+           ,DllCall("User32.dll\UpdateWindow", "Ptr", this)
+    } ; https://docs.microsoft.com/en-us/windows/win32/gdi/wm-setredraw
+
 
     ; ===================================================================================================================
     ; PROPERTIES
@@ -1110,18 +1126,14 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     /*
         Retrieves the number of buttons currently in the Toolbar control.
     */
-    Count[]
-    {
-        get => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x418, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-buttoncount
+    Count[] => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x418, "Ptr", 0, "Ptr", 0, "Ptr")
+    ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-buttoncount
 
     /*
         Retrieves the number of rows of buttons in the toolbar with the TBSTYLE_WRAPABLE style.
     */
-    Rows[]
-    {
-        get => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x428, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getrows
+    Rows[] => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x428, "Ptr", 0, "Ptr", 0, "Ptr")
+    ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getrows
 
     /*
         Retrieves the maximum number of text rows that can be displayed on a toolbar button.
@@ -1147,7 +1159,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     ; SPECIAL METHODS AND PROPERTIES
     ; ===================================================================================================================
     /*
-        Enumerates items from the Toolbar control.
+        Enumerates buttons from the Toolbar control.
         Syntax:
             for ItemIndex, ItemText in IToolbar
             for ItemIndex in IToolbar
