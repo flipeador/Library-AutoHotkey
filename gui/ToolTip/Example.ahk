@@ -6,7 +6,6 @@
 
 CoordMode("Mouse", "Screen")
 
-
 TT1 := CreateTooltip("ToolTip #1", 1)
 TT1.SetFont("s12 Italic Underline", "Courier New")
 
@@ -16,7 +15,7 @@ TT3 := CreateTooltip()
 TT3.SetFont("s12", "Arial Black")
 TT3.Show("This will disappear in 5 seconds!", A_ScreenWidth//2, A_ScreenHeight//2, 5000)
 
-loop
+while (!GetKeyState("Esc"))  ; Escape = ExitApp.
 {
     TT1.Show("My ToolTip Text")
 
@@ -25,5 +24,4 @@ loop
 
     Sleep(50)
 }
-until GetKeyState("Esc")  ; Escape = ExitApp.
 ExitApp

@@ -111,6 +111,6 @@ TB2_Events(GuiControl, lParam)
     if (Code == -2)  ; NM_CLICK.
     {
         ItemSpec := NumGet(lParam+3*A_PtrSize, "Ptr")
-        Toolbar.SetButtonState(Toolbar.CommandToIndex(ItemSpec), 0x01, -1)  ; TBSTATE_CHECKED.
+        Toolbar.SetButtonState(Toolbar.CommandToIndex(ItemSpec), 0x01, -1)  ; Toggle TBSTATE_CHECKED.
     }
 }

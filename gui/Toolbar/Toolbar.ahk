@@ -6,7 +6,7 @@
         Item indexes are zero based.
         Items can be identified by their index or their command identifier.
         DllCall is used instead of SendMessage to improve performance.
-        Include this file in the the Auto-execute Section of the script.
+        Include this file in the Auto-execute Section of the script.
     Toolbar Control Reference:
         https://docs.microsoft.com/en-us/windows/desktop/controls/toolbar-control-reference.
 */
@@ -15,9 +15,9 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     ; ===================================================================================================================
     ; STATIC/CLASS VARIABLES (readonly)
     ; ===================================================================================================================
-    static Type         := "Toolbar"          ; The type of the control.
-    static ClassName    := "ToolbarWindow32"  ; The control class name.
-    static Instance     := Map()              ; Instances of this control (hWnd:obj).
+    static Type         := "Toolbar"          ; A string with the control type name.
+    static ClassName    := "ToolbarWindow32"  ; A string with the control class name.
+    static Instance     := Map()              ; Instances of this control (ctrl_handle:this).
 
 
     ; ===================================================================================================================
@@ -25,7 +25,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     ; ===================================================================================================================
     Gui          := 0         ; The Gui object associated with this control.
     Ctrl         := 0         ; The Gui control class object.
-    hWnd         := 0         ; The control handle.
+    hWnd         := 0         ; The control Handle.
 
 
     ; ===================================================================================================================
@@ -140,8 +140,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
                 Application-defined value associated with the Toolbar button.
                 This value must be any integer number. By default it is zero.
         Return value:
-            If the method succeeds, the return value is the index at which the new button was inserted.
-            If the method fails, the return value is -1.
+            Returns TRUE if successful, or FALSE otherwise.
     */
     Add(Index := -1, CommandID := 0, Text := "`b", Image := -2, State := 4, Style := 0, Data := 0)
     {
@@ -149,8 +148,6 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         Style |= (Text == "`b"), NumPut("Ptr",Data,"Ptr",type(Text)=="Integer"?Text:&Text,,NumPut("Int"
         ,Style&1?abs(Image):Image,"Int",CommandID,"UCHar",State,"UCHar",Style,TBBUTTON)-2+A_PtrSize)
         return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x443, "Ptr", Index, "Ptr", TBBUTTON, "Ptr")
-             ? Index  ; Ok.
-             : -1     ; Error.
     } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-insertbutton
 
     /*
@@ -518,8 +515,8 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     */
     HitTest(X, Y)
     {
-        local POINT := (X & 0xFFFFFFFF) | ((Y & 0xFFFFFFFF) << 32)
-        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x445, "Ptr", 0, "Ptr", POINT, "Ptr")
+        local POINT := BufferAlloc(8)  ; POINT structure.
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x445, "Ptr", 0, "Ptr", NumPut("Int",X,"Int",Y,POINT)-8, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/win32/controls/tb-hittest
 
     /*
@@ -728,9 +725,8 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     */
     GetIdealSize(Value := 2)
     {
-        Value := Value == 2 ? this.GetStyle() & 0x00080 ? 1 : 0 : Value
         local SIZE := BufferAlloc(8)  ; SIZE structure.
-        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x463, "Ptr", Value, "Ptr", SIZE, "Ptr")
+        return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x463, "Ptr", Value:=(Value==2?!!(this.GetStyle()&0x80):Value), "Ptr", SIZE, "Ptr")
             ? Value ? NumGet(SIZE,4,"Int") : NumGet(SIZE,"Int")  ; OK.
             : -1                                                 ; ERROR.
     } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/tb-getidealsize

@@ -2,26 +2,29 @@
 
 /*
     Encapsulates the creation and manipulation by means of messages of a standart Tooltip control in a class.
+    Remarks:
+        DllCall is used instead of SendMessage to improve performance.
     Requirements:
         Windows Vista or later.
     Tooltip Control Reference:
         https://docs.microsoft.com/es-es/windows/win32/controls/tooltip-control-reference
     Thanks to / Based on:
-        just me - https://www.autohotkey.com/boards/viewtopic.php?f=6&t=2598.
+        just me - https://www.autohotkey.com/boards/viewtopic.php?f=6&t=2598
 */
-class IToolTip
+class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/boards/memberlist.php?mode=viewprofile&u=60315
 {
     ; ===================================================================================================================
     ; STATIC/CLASS VARIABLES
     ; ===================================================================================================================
-    static Type         := "ToolTip"          ; The type of the control.
-    static Instance     := Map()              ; Instances of this control (hWnd:obj).
+    static Type         := "ToolTip"           ; A string with the control type name.
+    static ClassName    := "tooltips_class32"  ; A string with the control class name.
+    static Instance     := Map()               ; Instances of this control (ctrl_handle:this).
 
 
     ; ===================================================================================================================
     ; INSTANCE VARIABLES
     ; ===================================================================================================================
-    hWnd         := 0         ; The Handle of this control.
+    hWnd         := 0         ; The control Handle.
     TTTOOLINFO   := 0         ; The TTTOOLINFO structure contains information about a tool in a tooltip control.
     Timer        := 0         ; Tooltip timer.
 
@@ -30,14 +33,16 @@ class IToolTip
     ; CONSTRUCTOR
     ; ===================================================================================================================
     /*
-        Creates a tooltip control. The CreateTooltip function can be used to create the control.
+        Creates a topmost tooltip control. The CreateTooltip function can be used to create the control.
+        Remakrs:
+            An existing Tooltip control object can be retrieved by means of its handle using the TooltipFromHwnd function.
     */
     __New()
     {
         ; CreateWindowExW function.
         ; https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexw.
         This.hWnd := DllCall("User32.dll\CreateWindowExW", "UInt", 0x00000008          ; dwExStyle         WS_EX_TOPMOST.
-                                                         ,  "Str", "tooltips_class32"  ; lpClassName       https://msdn.microsoft.com/en-us/library/windows/desktop/bb760250(v=vs.85).aspx.
+                                                         , "WStr", IToolTip.ClassName  ; lpClassName       https://msdn.microsoft.com/en-us/library/windows/desktop/bb760250(v=vs.85).aspx.
                                                          , "UPtr", 0                   ; lpWindowName      NULL.
                                                          , "UInt", 0x80000003          ; dwStyle           WS_POPUP|TTS_NOPREFIX|TTS_ALWAYSTIP.
                                                          ,  "Int", 0x80000000          ; x                 CW_USEDEFAULT.
@@ -69,10 +74,10 @@ class IToolTip
 
         ; TTM_SETMAXTIPWIDTH message.
         ; https://docs.microsoft.com/en-us/windows/win32/controls/ttm-setmaxtipwidth.
-        SendMessage(0x418,, 0, this)  ; Sets the maximum width for a tooltip window (0 to allow any width).
+        SendMessage(0x418,, 0, this)  ; Sets the maximum width for a tooltip control (0 to allow any width).
 
         IToolTip.Instance[this.Ptr:=this.hWnd] := this
-        this.Timer := ObjBindMethod(this, "Show", "")  ; Timer to hide the Tooltip window.
+        this.Timer := ObjBindMethod(this, "Show", "")  ; Timer to hide the Tooltip control.
     }
 
 
@@ -85,28 +90,30 @@ class IToolTip
     Destroy()
     {
         this.Timer := SetTimer(this.Timer, "Delete")  ; Deletes the timer.
-        DllCall("Gdi32.dll\DeleteObject", "Ptr", SendMessage(0x31,,,this))  ; Deletes the assigned font.
+        DllCall("Gdi32.dll\DeleteObject", "Ptr", SendMessage(0x31,,,this))  ; Deletes the current assigned font.
         IToolTip.Instance.Delete(this.hWnd)
         DllCall("User32.dll\DestroyWindow", "Ptr", This)
     }
 
     /*
-        Shows or hides the Tooltip control.
+        Show, hide, move or change the text of the Tooltip control.
         Parameters:
             Text:
-                A string with the text for this tooltip.
-                If an empty string is specified, the tooltip will be hidden.
-                The text is only modified if necessary (to avoid flickering).
+                A string with the new text for this tooltip. The text is only modified if necessary (to avoid flickering).
+                If this parameter is an empty string, the tooltip will be hidden.
+                If this parameter is omitted, the text is not changed.
             X / Y:
-               The coordinates where to show this tooltip.
+               The X and Y coordinates where to show this tooltip.
                if an empty string is specified, the current coordinates of the cursor are used. Coordinates are affected by A_CoordModeMouse.
                When some coordinate is omitted, it is automatically adjusted on the screen, so that the ToolTip is always visible on it.
             Duration:
-                See the SetTimer method.
+                Specifies the timeout, in milliseconds, of the Tooltip. After this time the Tooltip is hidden.
+                If this parameter is zero, the current timer is disabled, if any.
+                If this parameter is an empty string, the current timer is not changed, if any.
         Return value:
             The return value for this method is not used.
     */
-    Show(Text, X := "", Y := "", Duration := 0)
+    Show(Text := "`b", X := "", Y := "", Duration := "")
     {
         local
 
@@ -115,11 +122,12 @@ class IToolTip
             ; https://docs.microsoft.com/es-es/windows/win32/controls/ttm-trackactivate.
             return DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x411, "Ptr", FALSE, "Ptr", this.TTTOOLINFO, "Ptr")  ; Hide.
 
-        if (Text !== this.Text)  ; Changes the text only if it is not the same as the specified text.
+        if (Text !== "`b" && Text !== this.Text)  ; Changes the text only if it is not the same as the specified text.
             this.Text := Text
 
-        SetTimer(this.Timer, Duration?-Duration:"Off")
-       ,DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x411, "Ptr", TRUE, "Ptr", this.TTTOOLINFO, "Ptr")  ; Show.
+        if (Duration !== "")
+            SetTimer(this.Timer, Duration?-Abs(Duration):"Off")
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x411, "Ptr", TRUE, "Ptr", this.TTTOOLINFO, "Ptr")  ; Show.
 
         if (X == "" || Y == "")
         {
@@ -138,42 +146,22 @@ class IToolTip
     }
 
     /*
-        Determines the visibility state of this tooltip.
-        Return value:
-            Returns TRUE if the control is visible, or FALSE otherwise.
-    */
-    IsVisible()
-    {
-        return DllCall("User32.dll\IsWindowVisible", "Ptr", this)
-    } ; https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iswindowvisible
-
-    /*
-        Forces the current tooltip to be redrawn.
-        Return value:
-            The return value for this method is not used.
-    */
-    Update()
-    {
-        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x412, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/win32/controls/ttm-update
-
-    /*
         Sets a timer for this tooltip.
         Parameters:
             Duration:
-                The duration, in milliseconds, in which to automatically hide this tooltip.
+                Specifies the timeout, in milliseconds, of the Tooltip. After this time the Tooltip is hidden.
                 You must specify an integer greater than or equal to zero. A value of zero deactivates the timer.
         Return value:
             The return value for this method is not used.
     */
-    SetTimer(Duration) => SetTimer(this.Timer, Duration?-Duration:"Off")
+    SetTimer(Duration) => SetTimer(this.Timer, Duration?-Abs(Duration):"Off")
 
     /*
         Adds or removes the title for this tooltip.
         Parameters:
             Title:
-                The title to be displayed for this tooltip. An empty string does not show any title.
-                This parameter can be a pointer to a null terminated string.
+                A string with the title to be displayed for this tooltip.
+                If this parameter is an empty string, no title will be shown.
             Icon:
                 Specify the icon to be displayed for this tooltip. You must specify one of the following values.
                 0  TTI_NONE              No icon.
@@ -193,43 +181,64 @@ class IToolTip
     */
     SetTitle(Title, Icon := 0)
     {
-        SendMessage(0x421, Icon, type(Title)=="Integer"?Title:&Title, this)
-    } ; https://docs.microsoft.com/es-es/windows/desktop/Controls/ttm-settitle
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x421, "Ptr", Icon, "Str", Title, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/ttm-settitle
 
     /*
-        Sets the text font for this tooltip.
+        Sets the text font typeface, size and style of the Tooltip control.
+        Parameters:
+            Options:
+                A string with the font size and style.
+                Available options: sN (size), wiN (width), wN (weight), qN (quality), cN (charSet), Bold (w700), Italic, Underline, Strike.
+            FontName:
+                The typeface name of the font. The length of this string must not exceed 31 characters.
+                If this parameter is an empty string, the first font that matches the other specified attributes is used.
+        Return value:
+            The return value for this method is not used.
     */
     SetFont(Options, FontName)
     {
-        local
+        DllCall("Gdi32.dll\DeleteObject", "Ptr", SendMessage(0x31,,,this))  ; Deletes the current assigned font.
 
-        ; https://docs.microsoft.com/es-es/windows/desktop/winmsg/wm-getfont
-        if ( hFont := SendMessage(0x31,,,this) )
-            DllCall("Gdi32.dll\DeleteObject", "Ptr", hFont, "Int")
+        local hDC        := DllCall("Gdi32.dll\CreateDCW", "Str", "DISPLAY", "Ptr", 0, "Ptr", 0, "Ptr", 0, "Ptr")
+        local LOGPIXELSY := DllCall("Gdi32.dll\GetDeviceCaps", "Ptr", hDC, "Int", 90, "Int")  ; Number of pixels per logical inch along the screen height.
 
-        hDC := DllCall("Gdi32.dll\CreateDCW", "Str", "DISPLAY", "Ptr", 0, "Ptr", 0, "Ptr", 0, "Ptr")
-        R   := DllCall("Gdi32.dll\GetDeviceCaps", "Ptr", hDC, "Int", 90, "Int")
-        DllCall("Gdi32.dll\DeleteDC", "Ptr", hDC, "Int")
+        local t, Size := RegExMatch(Options,"i)s([\-\d\.]+)(p*)",t) ? t[1] : 10  ; 10 = Default size.
+        local hFont := DllCall("Gdi32.dll\CreateFontW",  "Int", -Round((Abs(Size)*LOGPIXELSY)/72)                                          ; int     cHeight.
+                                                      ,  "Int", RegExMatch(Options,"i)wi([\-\d]+)",t) ? t[1] : 0                           ; int     cWidth.
+                                                      ,  "Int", 0                                                                          ; int     cEscapement.
+                                                      ,  "Int", !DllCall("Gdi32.dll\DeleteDC", "Ptr", hDC)                                 ; int     cOrientation.
+                                                      ,  "Int", RegExMatch(Options,"i)w([\-\d]+)",t) ? t[1] : (Options~="i)Bold"?700:400)  ; int     cWeight.
+                                                      , "UInt", Options ~= "i)Italic"    ? TRUE : FALSE                                    ; DWORD   bItalic.
+                                                      , "UInt", Options ~= "i)Underline" ? TRUE : FALSE                                    ; DWORD   bUnderline.
+                                                      , "UInt", Options ~= "i)Strike"    ? TRUE : FALSE                                    ; DWORD   bStrikeOut.
+                                                      , "UInt", RegExMatch(Options,"i)c([\-\d]+)",t) ? t[1] : 1                            ; DWORD   iCharSet.
+                                                      , "UInt", 4                                                                          ; DWORD   iOutPrecision.
+                                                      , "UInt", 0                                                                          ; DWORD   iClipPrecision.
+                                                      , "UInt", RegExMatch(Options,"i)q([0-5])",t) ? t[1] : 5                              ; DWORD   iQuality.
+                                                      , "UInt", 0                                                                          ; DWORD   iPitchAndFamily.
+                                                      , "UPtr", &FontName                                                                  ; LPCWSTR pszFaceName.
+                                                      , "UPtr")
 
-        Size      := RegExMatch(Options, "i)s([\-\d\.]+)(p*)", t) ? t[1] : 10
-        Height    := Round((Abs(Size) * R) / 72) * -1
-        Quality   := RegExMatch(Options, "i)q([\-\d\.]+)(p*)", t) ? t[1] : 5
-        Weight    := RegExMatch(Options, "i)w([\-\d\.]+)(p*)", t) ? t[1] : (InStr(Options, "Bold") ? 700 : 400)
-        Italic    := !!InStr(Options, "Italic")
-        Underline := !!InStr(Options, "Underline")
-        Strike    := !!InStr(Options, "Strike")
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x30, "Ptr", hFont, "Ptr", TRUE, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/winmsg/wm-setfont
 
-        SendMessage(0x30
-                  , DllCall("Gdi32.dll\CreateFontW","Int",Height,"Int",0,"Int",0,"Int",0,"Int",Weight,"UInt",Italic,"UInt",Underline,"UInt",Strike,"UInt",1,"UInt",4,"UInt",0,"UInt",Quality,"UInt",0,"Ptr",&FontName,"Ptr")
-                  , TRUE, this)
-    } ; https://docs.microsoft.com/es-es/windows/desktop/winmsg/wm-setfont
+    /*
+        Forces the current tooltip to be redrawn.
+        Return value:
+            The return value for this method is not used.
+    */
+    Update()
+    {
+        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x412, "Ptr", 0, "Ptr", 0, "Ptr")
+    } ; https://docs.microsoft.com/es-es/windows/win32/controls/ttm-update
 
 
     ; ===================================================================================================================
     ; PROPERTIES
     ; ===================================================================================================================
     /*
-        Retrieves or changes the tooltip text.
+        Retrieves or changes the Tooltip text.
     */
     Text[]
     {
@@ -244,6 +253,13 @@ class IToolTip
            ,DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x439, "Ptr", 0, "Ptr", this.TTTOOLINFO, "Ptr")
         } ; https://docs.microsoft.com/es-es/windows/win32/controls/ttm-updatetiptext
     }
+
+    /*
+        Determines the visibility state of this tooltip.
+        Returns TRUE if the control is visible, or FALSE otherwise.
+    */
+    Visible() => DllCall("User32.dll\IsWindowVisible", "Ptr", this)
+    ; https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iswindowvisible
 }
 
 

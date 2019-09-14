@@ -5,7 +5,7 @@
     Remarks:
         Item indexes are zero based.
         DllCall is used instead of SendMessage to improve performance.
-        Include this file in the the Auto-execute Section of the script.
+        Include this file in the Auto-execute Section of the script.
     ComboBoxEx Control Reference:
         https://docs.microsoft.com/en-us/windows/win32/controls/comboboxex-control-reference
 */
@@ -14,9 +14,9 @@ class IComboBoxEx  ; https://github.com/flipeador  |  https://www.autohotkey.com
     ; ===================================================================================================================
     ; STATIC/CLASS VARIABLES (readonly)
     ; ===================================================================================================================
-    static Type         := "ComboBoxEx"    ; The type of the control.
-    static ClassName    := "ComboBoxEx32"  ; The control class name.
-    static Instance     := Map()           ; Instances of this control (hWnd:obj).
+    static Type         := "ComboBoxEx"    ; A string with the control type name.
+    static ClassName    := "ComboBoxEx32"  ; A string with the control class name.
+    static Instance     := Map()           ; Instances of this control (ctrl_handle:this).
 
 
     ; ===================================================================================================================
@@ -24,7 +24,7 @@ class IComboBoxEx  ; https://github.com/flipeador  |  https://www.autohotkey.com
     ; ===================================================================================================================
     Gui          := 0         ; The Gui object associated with this control.
     Ctrl         := 0         ; The Gui control class object.
-    hWnd         := 0         ; The control handle.
+    hWnd         := 0         ; The control Handle.
 
 
     ; ===================================================================================================================
@@ -44,6 +44,8 @@ class IComboBoxEx  ; https://github.com/flipeador  |  https://www.autohotkey.com
                 rN          Specifies the maximum number of visible rows in the list box. By default it is 5. AHK takes care of CBS_SIMPLE.
             Items:
                 The items to be added once the control is created.
+        Remarks:
+            An existing ComboBoxEx control object can be retrieved by means of its handle using the ComboBoxFromHwnd function.
     */
     __New(Gui, Options, Items*)
     {
