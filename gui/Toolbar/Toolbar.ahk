@@ -8,7 +8,7 @@
         DllCall is used instead of SendMessage to improve performance.
         Include this file in the Auto-execute Section of the script.
     Toolbar Control Reference:
-        https://docs.microsoft.com/en-us/windows/desktop/controls/toolbar-control-reference.
+        https://docs.microsoft.com/en-us/windows/win32/controls/toolbar-control-reference
 */
 class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/boards/memberlist.php?mode=viewprofile&u=60315
 {
@@ -47,7 +47,7 @@ class IToolbar  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
                 Vertical      Causes the control to be displayed vertically.
                 Adjustable    Enables a toolbar's built-in customization features, which let the user to drag a button to a new position or to remove a button by dragging it off the toolbar. In addition, the user can double-click the toolbar to display the Customize Toolbar dialog box, which enables the user to add, delete, and rearrange toolbar buttons.
                 AltDrag       Allows users to change a toolbar button's position by dragging it while holding down the ALT key. If this style is not specified, the user must hold down the SHIFT key while dragging a button. Note that the CCS_ADJUSTABLE style must be specified to enable toolbar buttons to be dragged.
-        Remakrs:
+        Remarks:
             To use the tooltips, add the "ToolTips" and "List" options to the control. You must also set the extended style TBSTYLE_EX_MIXEDBUTTONS using the SetExStyle method.
             An existing Toolbar control object can be retrieved by means of its handle using the ToolbarFromHwnd function.
     */

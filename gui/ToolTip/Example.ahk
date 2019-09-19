@@ -4,16 +4,15 @@
 #Include ToolTip.ahk
 
 
-CoordMode("Mouse", "Screen")
-
-TT1 := CreateTooltip("ToolTip #1", 1)
+TT1 := CreateToolTip("ToolTip #1", 1)
 TT1.SetFont("s12 Italic Underline", "Courier New")
 
-TT2 := CreateTooltip("ToolTip #2", 2)
+TT2 := CreateToolTip("ToolTip #2", 2)
 
-TT3 := CreateTooltip()
+TT3 := CreateToolTip()
 TT3.SetFont("s12", "Arial Black")
-TT3.Show("This will disappear in 5 seconds!", A_ScreenWidth//2, A_ScreenHeight//2, 5000)
+TT3.Show("This will disappear in 5 seconds!", A_ScreenWidth//2, A_ScreenHeight//2)
+TT3.SetTimer(5000, () => TT3.Destroy())
 
 while (!GetKeyState("Esc"))  ; Escape = ExitApp.
 {

@@ -15,7 +15,7 @@
 class IGuiControlTips  ; https://github.com/flipeador  |  https://www.autohotkey.com/boards/memberlist.php?mode=viewprofile&u=60315
 {
     ; ===================================================================================================================
-    ; STATIC/CLASS VARIABLES
+    ; STATIC/CLASS VARIABLES (readonly)
     ; ===================================================================================================================
     static Type         := "GuiControlTips"    ; A string with the control type name.
     static ClassName    := "tooltips_class32"  ; A string with the control class name.
@@ -23,7 +23,7 @@ class IGuiControlTips  ; https://github.com/flipeador  |  https://www.autohotkey
 
 
     ; ===================================================================================================================
-    ; INSTANCE VARIABLES
+    ; INSTANCE VARIABLES (readonly)
     ; ===================================================================================================================
     Gui          := 0         ; The Gui object associated with this control.
     hWnd         := 0         ; The control Handle.
@@ -41,7 +41,8 @@ class IGuiControlTips  ; https://github.com/flipeador  |  https://www.autohotkey
             Gui:
                 The GUI window object. This object must be previously created by a call to the GuiCreate function.
                 The Tooltip will be associated with this window. Using the Add method you can configure the tooltip for the controls.
-        Remakrs:
+        Remarks:
+            You can create more than one Tooltip for the same window, useful to have different font and title for each control.
             An existing Tooltip control object can be retrieved by means of its handle using the GuiTooltipFromHwnd function.
     */
     __New(Gui)
@@ -67,7 +68,7 @@ class IGuiControlTips  ; https://github.com/flipeador  |  https://www.autohotkey
 
         ; TTTOOLINFOW structure.
         ; https://docs.microsoft.com/en-us/windows/win32/api/commctrl/ns-commctrl-tttoolinfow.
-        ; We initialize only one structure to use with all methods, to improve performance.
+        ; We initialize only one structure to use with all methods, to improve performance and for convenience.
         this.TTTOOLINFO := BufferAlloc(24+6*A_PtrSize)
 
         NumPut("UInt", this.TTTOOLINFO.Size, this.TTTOOLINFO)     ; cbSize    Size of this structure, in bytes.
@@ -99,7 +100,7 @@ class IGuiControlTips  ; https://github.com/flipeador  |  https://www.autohotkey
         this.CtrlList := ""
         DllCall("Gdi32.dll\DeleteObject", "Ptr", SendMessage(0x31,,,this))  ; Deletes the current assigned font.
         IGuiControlTips.Instance.Delete(this.hWnd)
-        DllCall("User32.dll\DestroyWindow", "Ptr", This)
+        DllCall("User32.dll\DestroyWindow", "Ptr", this)
     }
 
     /*
@@ -115,6 +116,8 @@ class IGuiControlTips  ; https://github.com/flipeador  |  https://www.autohotkey
                 0x0002  TTF_CENTERTIP    Centers the tooltip window below the specified control.
         Return value:
             Returns TRUE if it succeeded, or FALSE otherwise.
+        Remarks:
+            If the specified control is already registered, it is deregistered and re-registered with the new parameters.
     */
     Add(GuiControl, Text, Flags := 0)
     {
@@ -245,10 +248,8 @@ class IGuiControlTips  ; https://github.com/flipeador  |  https://www.autohotkey
         Return value:
             The return value for this method is not used.
     */
-    SetTitle(Title, Icon := 0)
-    {
-        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x421, "Ptr", Icon, "Str", Title, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/win32/controls/ttm-settitle
+    SetTitle(Title, Icon) => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x421, "Ptr", Icon, "Str", Title, "Ptr")
+    ; https://docs.microsoft.com/es-es/windows/win32/controls/ttm-settitle
 
     /*
         Sets the text font typeface, size and style of the Tooltip control.
@@ -267,9 +268,9 @@ class IGuiControlTips  ; https://github.com/flipeador  |  https://www.autohotkey
         DllCall("Gdi32.dll\DeleteObject", "Ptr", SendMessage(0x31,,,this))  ; Deletes the current assigned font.
 
         local hDC        := DllCall("Gdi32.dll\CreateDCW", "Str", "DISPLAY", "Ptr", 0, "Ptr", 0, "Ptr", 0, "Ptr")
-        local LOGPIXELSY := DllCall("Gdi32.dll\GetDeviceCaps", "Ptr", hDC, "Int", 90, "Int")  ; Number of pixels per logical inch along the screen height.
+        local LOGPIXELSY := DllCall("Gdi32.dll\GetDeviceCaps", "Ptr", hDC, "Int", 90)  ; Number of pixels per logical inch along the screen height.
 
-        local t, Size := RegExMatch(Options,"i)s([\-\d\.]+)(p*)",t) ? t[1] : 10  ; 10 = Default size.
+        local t, Size := RegExMatch(Options,"i)s([\d]+)",t) ? t[1] : 10  ; 10 = Default size.
         local hFont := DllCall("Gdi32.dll\CreateFontW",  "Int", -Round((Abs(Size)*LOGPIXELSY)/72)                                          ; int     cHeight.
                                                       ,  "Int", RegExMatch(Options,"i)wi([\-\d]+)",t) ? t[1] : 0                           ; int     cWidth.
                                                       ,  "Int", 0                                                                          ; int     cEscapement.
@@ -278,7 +279,7 @@ class IGuiControlTips  ; https://github.com/flipeador  |  https://www.autohotkey
                                                       , "UInt", Options ~= "i)Italic"    ? TRUE : FALSE                                    ; DWORD   bItalic.
                                                       , "UInt", Options ~= "i)Underline" ? TRUE : FALSE                                    ; DWORD   bUnderline.
                                                       , "UInt", Options ~= "i)Strike"    ? TRUE : FALSE                                    ; DWORD   bStrikeOut.
-                                                      , "UInt", RegExMatch(Options,"i)c([\-\d]+)",t) ? t[1] : 1                            ; DWORD   iCharSet.
+                                                      , "UInt", RegExMatch(Options,"i)c([\d]+)",t) ? t[1] : 1                              ; DWORD   iCharSet.
                                                       , "UInt", 4                                                                          ; DWORD   iOutPrecision.
                                                       , "UInt", 0                                                                          ; DWORD   iClipPrecision.
                                                       , "UInt", RegExMatch(Options,"i)q([0-5])",t) ? t[1] : 5                              ; DWORD   iQuality.

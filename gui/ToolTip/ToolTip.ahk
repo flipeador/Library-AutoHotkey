@@ -1,7 +1,7 @@
 ; AutoHotkey v2.0-a104-3e7a969d.
 
 /*
-    Encapsulates the creation and manipulation by means of messages of a standart Tooltip control in a class.
+    Encapsulates the creation and manipulation of a standart Tooltip control in a class.
     Remarks:
         DllCall is used instead of SendMessage to improve performance.
     Requirements:
@@ -27,15 +27,16 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     hWnd         := 0         ; The control Handle.
     TTTOOLINFO   := 0         ; The TTTOOLINFO structure contains information about a tool in a tooltip control.
     Timer        := 0         ; Tooltip timer.
+    Callback     := 0         ; Callback function set by the user by a call to the SetTimer method.
 
 
     ; ===================================================================================================================
     ; CONSTRUCTOR
     ; ===================================================================================================================
     /*
-        Creates a topmost tooltip control. The CreateTooltip function can be used to create the control.
+        Creates a topmost tooltip control. The CreateToolTip function can be used to create the control.
         Remakrs:
-            An existing Tooltip control object can be retrieved by means of its handle using the TooltipFromHwnd function.
+            An existing Tooltip control object can be retrieved by means of its handle using the ToolTipFromHwnd function.
     */
     __New()
     {
@@ -59,7 +60,7 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
 
         ; TTTOOLINFOW structure.
         ; https://docs.microsoft.com/en-us/windows/win32/api/commctrl/ns-commctrl-tttoolinfow.
-        ; We initialize only one structure to use with all methods, to improve performance.
+        ; We initialize only one structure to use with all methods, to improve performance and for convenience.
         this.TTTOOLINFO := BufferAlloc(24+6*A_PtrSize)
 
         NumPut("UInt", this.TTTOOLINFO.Size, this.TTTOOLINFO)                  ; cbSize    Size of this structure, in bytes.
@@ -77,7 +78,18 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         SendMessage(0x418,, 0, this)  ; Sets the maximum width for a tooltip control (0 to allow any width).
 
         IToolTip.Instance[this.Ptr:=this.hWnd] := this
-        this.Timer := ObjBindMethod(this, "Show", "")  ; Timer to hide the Tooltip control.
+        this.Timer := ObjBindMethod(this, "Timeout")  ; Used with the built-in SetTimer function to hide the Tooltip control.
+    }
+
+
+    ; ===================================================================================================================
+    ; PRIVATE METHODS
+    ; ===================================================================================================================
+    Timeout()
+    {
+        local RetVal := this.Callback ? this.Callback.Call() : -1
+        if (RetVal !== 0 && IToolTip.Instance.Has(this.hWnd))
+            this.Show("")  ; Hides the tooltip control.
     }
 
 
@@ -92,24 +104,24 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         this.Timer := SetTimer(this.Timer, "Delete")  ; Deletes the timer.
         DllCall("Gdi32.dll\DeleteObject", "Ptr", SendMessage(0x31,,,this))  ; Deletes the current assigned font.
         IToolTip.Instance.Delete(this.hWnd)
-        DllCall("User32.dll\DestroyWindow", "Ptr", This)
+        DllCall("User32.dll\DestroyWindow", "Ptr", this)
     }
 
     /*
         Show, hide, move or change the text of the Tooltip control.
         Parameters:
             Text:
-                A string with the new text for this tooltip. The text is only modified if necessary (to avoid flickering).
+                A string with the new text for this tooltip.
                 If this parameter is an empty string, the tooltip will be hidden.
                 If this parameter is omitted, the text is not changed.
             X / Y:
                The X and Y coordinates where to show this tooltip.
-               if an empty string is specified, the current coordinates of the cursor are used. Coordinates are affected by A_CoordModeMouse.
+               If this parameter is omitted, the current screen coordinates of the cursor are used.
                When some coordinate is omitted, it is automatically adjusted on the screen, so that the ToolTip is always visible on it.
             Duration:
-                Specifies the timeout, in milliseconds, of the Tooltip. After this time the Tooltip is hidden.
+                Specifies the timeout, in milliseconds, of the Tooltip. After this time the Tooltip will be hidden.
                 If this parameter is zero, the current timer is disabled, if any.
-                If this parameter is an empty string, the current timer is not changed, if any.
+                If this parameter is omitted, the current timer is not changed, if any.
         Return value:
             The return value for this method is not used.
     */
@@ -133,11 +145,13 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         {
             ; TTM_GETBUBBLESIZE message.
             ; https://docs.microsoft.com/es-es/windows/win32/controls/ttm-getbubblesize.
-            BSize := DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x41E, "Ptr", !MouseGetPos(X2,Y2)*0, "Ptr", this.TTTOOLINFO, "Ptr")
+            BSize := DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x41E
+                                                      , "Ptr", !DllCall("User32.dll\GetCursorPos", "Int64P", POINT:=0)
+                                                      , "Ptr", this.TTTOOLINFO, "Ptr")
             if (X == "")
-                W := BSize&0xFFFF, X := X2 + 10, X := X + W > (VW:=SysGet(78)) ? X - (X + W - VW) : X
+                W := BSize&0xFFFF, X := (POINT&0xFFFFFFFF)+10, X := X+W>(VW:=SysGet(78)) ? X-(X+W-VW) : X
             if (Y == "")
-                H := (BSize>>16)&0xFFFF, Y := Y2 + 10, Y := Y + H > SysGet(79) ? Y - H - 10 : Y
+                H := (BSize>>16)&0xFFFF, Y := ((POINT>>32)&0xFFFFFFFF)+10, Y := Y+H > SysGet(79) ? Y-H-10 : Y
         }
 
         ; TTM_TRACKPOSITION message.
@@ -149,12 +163,21 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         Sets a timer for this tooltip.
         Parameters:
             Duration:
-                Specifies the timeout, in milliseconds, of the Tooltip. After this time the Tooltip is hidden.
+                Specifies the timeout, in milliseconds, of the Tooltip. After this time the Tooltip will be hidden.
                 You must specify an integer greater than or equal to zero. A value of zero deactivates the timer.
+            Callback:
+                A function object to be called once the time has passed.
+                If this parameter is an empty string, the current function is not changed.
+                If this parameter is zero, no function is called.
+                If the specified function returns zero, the tooltip will not be hidden.
         Return value:
             The return value for this method is not used.
     */
-    SetTimer(Duration) => SetTimer(this.Timer, Duration?-Abs(Duration):"Off")
+    SetTimer(Duration, Callback := "")
+    {
+        this.Callback := Callback == "" ? this.Callback : Callback
+        SetTimer(this.Timer, Duration?-Abs(Duration):"Off")
+    }
 
     /*
         Adds or removes the title for this tooltip.
@@ -179,10 +202,8 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         Return value:
             The return value for this method is not used.
     */
-    SetTitle(Title, Icon := 0)
-    {
-        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x421, "Ptr", Icon, "Str", Title, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/win32/controls/ttm-settitle
+    SetTitle(Title, Icon) => DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x421, "Ptr", Icon, "Str", Title, "Ptr")
+    ; https://docs.microsoft.com/es-es/windows/win32/controls/ttm-settitle
 
     /*
         Sets the text font typeface, size and style of the Tooltip control.
@@ -201,9 +222,9 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         DllCall("Gdi32.dll\DeleteObject", "Ptr", SendMessage(0x31,,,this))  ; Deletes the current assigned font.
 
         local hDC        := DllCall("Gdi32.dll\CreateDCW", "Str", "DISPLAY", "Ptr", 0, "Ptr", 0, "Ptr", 0, "Ptr")
-        local LOGPIXELSY := DllCall("Gdi32.dll\GetDeviceCaps", "Ptr", hDC, "Int", 90, "Int")  ; Number of pixels per logical inch along the screen height.
+        local LOGPIXELSY := DllCall("Gdi32.dll\GetDeviceCaps", "Ptr", hDC, "Int", 90)  ; Number of pixels per logical inch along the screen height.
 
-        local t, Size := RegExMatch(Options,"i)s([\-\d\.]+)(p*)",t) ? t[1] : 10  ; 10 = Default size.
+        local t, Size := RegExMatch(Options,"i)s([\d]+)",t) ? t[1] : 10  ; 10 = Default size.
         local hFont := DllCall("Gdi32.dll\CreateFontW",  "Int", -Round((Abs(Size)*LOGPIXELSY)/72)                                          ; int     cHeight.
                                                       ,  "Int", RegExMatch(Options,"i)wi([\-\d]+)",t) ? t[1] : 0                           ; int     cWidth.
                                                       ,  "Int", 0                                                                          ; int     cEscapement.
@@ -212,7 +233,7 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
                                                       , "UInt", Options ~= "i)Italic"    ? TRUE : FALSE                                    ; DWORD   bItalic.
                                                       , "UInt", Options ~= "i)Underline" ? TRUE : FALSE                                    ; DWORD   bUnderline.
                                                       , "UInt", Options ~= "i)Strike"    ? TRUE : FALSE                                    ; DWORD   bStrikeOut.
-                                                      , "UInt", RegExMatch(Options,"i)c([\-\d]+)",t) ? t[1] : 1                            ; DWORD   iCharSet.
+                                                      , "UInt", RegExMatch(Options,"i)c([\d]+)",t) ? t[1] : 1                              ; DWORD   iCharSet.
                                                       , "UInt", 4                                                                          ; DWORD   iOutPrecision.
                                                       , "UInt", 0                                                                          ; DWORD   iClipPrecision.
                                                       , "UInt", RegExMatch(Options,"i)q([0-5])",t) ? t[1] : 5                              ; DWORD   iQuality.
@@ -222,16 +243,6 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
 
         DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x30, "Ptr", hFont, "Ptr", TRUE, "Ptr")
     } ; https://docs.microsoft.com/es-es/windows/win32/winmsg/wm-setfont
-
-    /*
-        Forces the current tooltip to be redrawn.
-        Return value:
-            The return value for this method is not used.
-    */
-    Update()
-    {
-        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x412, "Ptr", 0, "Ptr", 0, "Ptr")
-    } ; https://docs.microsoft.com/es-es/windows/win32/controls/ttm-update
 
 
     ; ===================================================================================================================
@@ -258,7 +269,7 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         Determines the visibility state of this tooltip.
         Returns TRUE if the control is visible, or FALSE otherwise.
     */
-    Visible() => DllCall("User32.dll\IsWindowVisible", "Ptr", this)
+    Visible[] => DllCall("User32.dll\IsWindowVisible", "Ptr", this)
     ; https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iswindowvisible
 }
 
@@ -269,14 +280,14 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
 ; #######################################################################################################################
 ; FUNCTIONS                                                                                                             #
 ; #######################################################################################################################
-CreateTooltip(Title := "", Icon := 0)
+CreateToolTip(Title := "", Icon := 0)
 {
     local Tooltip := ITooltip.New()
     Tooltip.SetTitle(Title, Icon)
     return Tooltip
 }
 
-TooltipFromHwnd(Hwnd)
+ToolTipFromHwnd(Hwnd)
 {
     return ITooltip.Instance[IsObject(Hwnd)?Hwnd.hWnd:Hwnd]
 }
