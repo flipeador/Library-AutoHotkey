@@ -212,7 +212,7 @@ CreateImageList(Width := -1, Height := -1, InitialCount := 2, GrowCount := 5, Fl
 
 DuplicateImageList(ImageList)
 {
-    return IImageList.FromImageList(ImageList)
+    return IImageList.FromImageList.New(ImageList)
 }
 
 ImageListFromData(Data)

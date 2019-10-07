@@ -6,12 +6,10 @@
 
 Gui := GuiCreate()
 
-CTT1 := GuiControlTips(Gui)
-CTT1.SetTitle("GuiControlTips", 1)
+CTT1 := GuiControlTips(Gui, "GuiControlTips", 1)
 CTT1.SetFont("Italic", "Courier New")
 
-CTT2 := GuiControlTips(Gui)
-CTT2.SetTitle("GuiControlTips", 2)
+CTT2 := GuiControlTips(Gui, "GuiControlTips", 2)
 CTT2.SetFont("Underline", "Segoe UI")
 
 Button := Gui.AddButton("w200", "Activate/Deactivate")
@@ -27,5 +25,3 @@ CTT2.Add(DDL, "Gui Control DDL.")
 Gui.OnEvent("Close", "ExitApp")
 Gui.Show()
 return
-
-f1::CTT2.Add(DDL, "XXXX")

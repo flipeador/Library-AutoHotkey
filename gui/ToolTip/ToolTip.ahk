@@ -38,7 +38,7 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
         Remakrs:
             An existing Tooltip control object can be retrieved by means of its handle using the ToolTipFromHwnd function.
     */
-    __New()
+    __New(Title := "", Icon := 0)
     {
         ; CreateWindowExW function.
         ; https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-createwindowexw.
@@ -79,6 +79,8 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
 
         IToolTip.Instance[this.Ptr:=this.hWnd] := this
         this.Timer := ObjBindMethod(this, "Timeout")  ; Used with the built-in SetTimer function to hide the Tooltip control.
+
+        this.SetTitle(Title, Icon)
     }
 
 
@@ -102,7 +104,7 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     Destroy()
     {
         this.Timer := SetTimer(this.Timer, "Delete")  ; Deletes the timer.
-        DllCall("Gdi32.dll\DeleteObject", "Ptr", SendMessage(0x31,,,this))  ; Deletes the current assigned font.
+        this.SetFont("", 0)  ; Deletes the current assigned font.
         IToolTip.Instance.Delete(this.hWnd)
         DllCall("User32.dll\DestroyWindow", "Ptr", this)
     }
@@ -214,18 +216,20 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
             FontName:
                 The typeface name of the font. The length of this string must not exceed 31 characters.
                 If this parameter is an empty string, the first font that matches the other specified attributes is used.
+                If this parameter is zero, the control uses the default system font to draw text.
+                This parameter can be a pointer to a null-terminated string.
         Return value:
             The return value for this method is not used.
     */
     SetFont(Options, FontName)
     {
-        DllCall("Gdi32.dll\DeleteObject", "Ptr", SendMessage(0x31,,,this))  ; Deletes the current assigned font.
-
+        local hFontPrev  := SendMessage(0x31,,, this)  ; WM_GETFONT message.
         local hDC        := DllCall("Gdi32.dll\CreateDCW", "Str", "DISPLAY", "Ptr", 0, "Ptr", 0, "Ptr", 0, "Ptr")
         local LOGPIXELSY := DllCall("Gdi32.dll\GetDeviceCaps", "Ptr", hDC, "Int", 90)  ; Number of pixels per logical inch along the screen height.
 
         local t, Size := RegExMatch(Options,"i)s([\d]+)",t) ? t[1] : 10  ; 10 = Default size.
-        local hFont := DllCall("Gdi32.dll\CreateFontW",  "Int", -Round((Abs(Size)*LOGPIXELSY)/72)                                          ; int     cHeight.
+        local hFont := FontName == 0 ? 0  ; The control uses the default system font to draw text.
+                     : DllCall("Gdi32.dll\CreateFontW",  "Int", -Round((Abs(Size)*LOGPIXELSY)/72)                                          ; int     cHeight.
                                                       ,  "Int", RegExMatch(Options,"i)wi([\-\d]+)",t) ? t[1] : 0                           ; int     cWidth.
                                                       ,  "Int", 0                                                                          ; int     cEscapement.
                                                       ,  "Int", !DllCall("Gdi32.dll\DeleteDC", "Ptr", hDC)                                 ; int     cOrientation.
@@ -238,10 +242,11 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
                                                       , "UInt", 0                                                                          ; DWORD   iClipPrecision.
                                                       , "UInt", RegExMatch(Options,"i)q([0-5])",t) ? t[1] : 5                              ; DWORD   iQuality.
                                                       , "UInt", 0                                                                          ; DWORD   iPitchAndFamily.
-                                                      , "UPtr", &FontName                                                                  ; LPCWSTR pszFaceName.
-                                                      , "UPtr")
+                                                      , "UPtr", Type(FontName) == "String" ? &FontName : FontName                          ; LPCWSTR pszFaceName.
+                                                      , "UPtr")                                                                            ; ReturnType.
 
-        DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x30, "Ptr", hFont, "Ptr", TRUE, "Ptr")
+        SendMessage(0x30, hFont, TRUE, this)  ; WM_SETFONT message.
+        DllCall("Gdi32.dll\DeleteObject", "Ptr", hFontPrev)  ; Deletes the previous font.
     } ; https://docs.microsoft.com/es-es/windows/win32/winmsg/wm-setfont
 
 
@@ -282,9 +287,7 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
 ; #######################################################################################################################
 CreateToolTip(Title := "", Icon := 0)
 {
-    local Tooltip := ITooltip.New()
-    Tooltip.SetTitle(Title, Icon)
-    return Tooltip
+    return ITooltip.New(Title, Icon)
 }
 
 ToolTipFromHwnd(Hwnd)
