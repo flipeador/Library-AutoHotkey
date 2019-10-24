@@ -153,7 +153,7 @@ QueryWMIDeviceID(DeviceID)
 DeviceIoControl(hDevice, IoControlCode, InBuffer := 0, OutBuffer := 0, Overlapped := 0)
 {
     local BytesReturned := 0
-    return DllCall("Kernel32.dll\DeviceIoControl",  "UPtr", hDevice                    ; hDevice.
+    return DllCall("Kernel32.dll\DeviceIoControl",   "Ptr", hDevice                    ; hDevice.
                                                  ,  "UInt", IoControlCode              ; dwIoControlCode.
                                                  ,   "Ptr", InBuffer                   ; lpInBuffer.
                                                  ,  "UInt", InBuffer&&InBuffer.Size    ; nInBufferSize.
@@ -164,6 +164,29 @@ DeviceIoControl(hDevice, IoControlCode, InBuffer := 0, OutBuffer := 0, Overlappe
          ? {InBuffer:InBuffer,OutBuffer:OutBuffer,BytesReturned:BytesReturned}  ; Ok.
          : 0                                                                    ; Error.
 } ; https://docs.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-deviceiocontrol
+
+
+
+
+
+/*
+    Enumerates all valid drives in the system.
+    Return value:
+        If the function succeeds, the return value is an Array of valid drives in the system ("X:\").
+        If the function fails, the return value is zero. A_LastError contains a system error code.
+*/
+EnumerateDrives()
+{
+    local RequiredSize := DllCall("Kernel32.dll\GetLogicalDriveStringsW", "UInt", 0, "Ptr", 0)
+    local Buffer       := BufferAlloc(2*(RequiredSize+1), 0)
+    if !DllCall("Kernel32.dll\GetLogicalDriveStringsW", "UInt", RequiredSize, "Ptr", Buffer)
+        return 0
+
+    local Name := "", Ptr := Buffer.Ptr, List := []
+    while StrLen(Name:=StrGet(Ptr))
+        List.Push(Name), Ptr += StrPut(Name)
+    return List
+} ; https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getlogicaldrivestringsw?redirectedfrom=MSDN
 
 
 

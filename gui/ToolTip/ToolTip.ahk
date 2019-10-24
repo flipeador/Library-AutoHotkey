@@ -103,7 +103,7 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     */
     Destroy()
     {
-        this.Timer := SetTimer(this.Timer, "Delete")  ; Deletes the timer.
+        this.Timer := SetTimer(this.Timer, 0)  ; Deletes the timer.
         this.SetFont("", 0)  ; Deletes the current assigned font.
         IToolTip.Instance.Delete(this.hWnd)
         DllCall("User32.dll\DestroyWindow", "Ptr", this)
@@ -140,7 +140,7 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
             this.Text := Text
 
         if (Duration !== "")
-            SetTimer(this.Timer, Duration?-Abs(Duration):"Off")
+            SetTimer(this.Timer, Duration?-Abs(Duration):0)
         DllCall("User32.dll\SendMessageW", "Ptr", this, "UInt", 0x411, "Ptr", TRUE, "Ptr", this.TTTOOLINFO, "Ptr")  ; Show.
 
         if (X == "" || Y == "")
@@ -178,7 +178,7 @@ class IToolTip  ; https://github.com/flipeador  |  https://www.autohotkey.com/bo
     SetTimer(Duration, Callback := "")
     {
         this.Callback := Callback == "" ? this.Callback : Callback
-        SetTimer(this.Timer, Duration?-Abs(Duration):"Off")
+        SetTimer(this.Timer, Duration?-Abs(Duration):0)
     }
 
     /*

@@ -58,3 +58,42 @@ OpenFile(FileName, DesiredAccess := 0, ShareMode := 0, CreationDisposition := 3,
                                                       , "Ptr")                       ; Return type.
     return Handle == -1 ? 0 : Handle  ; INVALID_HANDLE_VALUE = -1.
 } ; https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew
+
+
+/*
+class IOpenFile
+{
+    ; ===================================================================================================================
+    ; STATIC/CLASS VARIABLES (readonly)
+    ; ===================================================================================================================
+    Handle := 0
+
+
+    ; ===================================================================================================================
+    ; CONSTRUCTOR
+    ; ===================================================================================================================
+    __New(FileName, DesiredAccess, ShareMode, CreationDisposition, SecurityAttributes, FlagsAndAttributes, hTemplateFile)
+    {
+        this.Handle := DllCall("Kernel32.dll\CreateFileW", "WStr", FileName             ; lpFileName.
+                                                         , "UInt", DesiredAccess        ; dwDesiredAccess.
+                                                         , "UInt", ShareMode            ; dwShareMode.
+                                                         , "UPtr", SecurityAttributes   ; lpSecurityAttributes.
+                                                         , "UInt", CreationDisposition  ; dwCreationDisposition. OPEN_EXISTING.
+                                                         , "UInt", FlagsAndAttributes   ; dwFlagsAndAttributes.
+                                                         , "UPtr", hTemplateFile        ; hTemplateFile.
+                                                         , "Ptr")                       ; Return type.
+        this.Ptr := this.Handle
+        if (this.Handle == -1)  ; INVALID_HANDLE_VALUE.
+            return 0
+    }
+
+
+    ; ===================================================================================================================
+    ; DESTRUCTOR
+    ; ===================================================================================================================
+    __Delete()
+    {
+        DllCall("Kernel32.dll\CloseHandle", "Ptr", this)
+    }
+}
+*/
