@@ -53,7 +53,7 @@ DirUpdate(Source, Dest, Flags := "", Skip := "")
                  , CreatedFiles : []
                  , CreatedFilesE: []
                  , Count        : 0 }
-    
+
     D := InStr(Flags, "D")
     R := InStr(Flags, "R")
     I := InStr(Flags, "I")
@@ -81,13 +81,12 @@ DirUpdate(Source, Dest, Flags := "", Skip := "")
         ++Result.Count, ObjRawSet(DestFiles, File, 0)
     }
 
-    ; creamos los archivos que no existan en «Dest» pero si en «Source»
     Loop Files, Source . "\*.*", R ? "FR" : "F"
     {
         File := SubStr(A_LoopFileFullPath, Pos2)
         If (!ObjHasKey(DestFiles, File))
         {
-            File := Dest . "\" . File, SplitPath(File,, D), DirCreate(D)    ; nos aseguramos de que el directorio exista o de otro modo FileCopy falla
+            File := Dest . "\" . File, SplitPath(File,, D), DirCreate(D)
             ++Result.Count, ObjPush(Result[FileCopy(A_LoopFileFullPath, File) ? "CreatedFiles" : "CreatedFilesE"], File)
         }
     }

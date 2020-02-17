@@ -15,14 +15,14 @@ FileGetEncoding(FileName)
 
     if (Type(FileName) == "String")
     {
-        File := FileOpen(FileName, "r-wd")
+        try File := FileOpen(FileName, "r-wd")
         if (!IsObject(File))
             return 0
     }
 
     else if (Type(FileName) == "Integer")
     {
-        File := FileOpen(FileName, "h")
+        try File := FileOpen(FileName, "h")
         if (!IsObject(File))
             return 0
     }
@@ -36,7 +36,7 @@ FileGetEncoding(FileName)
     }
 
     Size := File.Length  ; File size, in bytes.
-    
+
     ; ANSI?.
     if (Size < 2)
         return ""

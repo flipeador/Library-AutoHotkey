@@ -38,9 +38,3 @@ RunFileDlg(Owner := 0, WorkingDir := "", Title := 0, Description := 0, hIcon := 
 
     DllCall(pRunFileDlg, "Ptr", Owner, "Ptr", hIcon, "Ptr", pWorkingDir, "Ptr", pTitle, "Ptr", pDescription, "UInt", Flags)
 } ;https://www.winehq.org/pipermail/wine-patches/2004-June/011280.html | https://www.codeproject.com/articles/2734/using-the-windows-runfile-dialog-the-documented-an
-
-
-
-
-
-;RunFileDlg()

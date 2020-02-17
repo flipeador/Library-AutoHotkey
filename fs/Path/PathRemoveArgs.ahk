@@ -7,4 +7,4 @@ PathRemoveArgs(Path)
 {
     DllCall("Shlwapi.dll\PathRemoveArgsW", "Str", Path)
     return Path
-} ; https://docs.microsoft.com/en-us/windows/desktop/api/shlwapi/nf-shlwapi-pathremoveargsw
+} ; https://docs.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-pathremoveargsw

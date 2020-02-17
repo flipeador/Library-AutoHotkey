@@ -1,21 +1,26 @@
-﻿/*
+﻿#Include misc.ahk
+#Include ..\process\process.ahk
+#Include ..\process\memory.ahk
+
+
+
+
+
+/*
     Sets the desktop wallpaper for the current user.
     Parameters:
         FileName:
             The name of an image file. It is recommended to use a BMP image.
         Flags:
-            Specifies whether the user profile is to be updated, and if so, whether the WM_SETTINGCHANGE message is to be broadcast to all top-level windows to notify them of the change.
-            0x0001  SPIF_UPDATEINIFILE                          Writes the new system-wide parameter setting to the user profile.
-            0x0002  SPIF_SENDWININICHANGE / SPIF_SENDCHANGE     Broadcasts the WM_SETTINGCHANGE message after updating the user profile.
+            See the SystemParametersInfo function (misc.ahk).
     Return value:
         If the function succeeds, the return value is non-zero.
-        If the function fails, the return value is zero. To get extended error information, check A_LastError.
+        If the function fails, the return value is zero. A_LastError contains extended error information.
 */
 DesktopSetWallpaper(FileName, Flags := 0)
 {
-    ; SPI_SETDESKWALLPAPER = 0x0014.
-    return DllCall("User32.dll\SystemParametersInfoW", "UInt", 0x0014, "UInt", 0, "Ptr", &FileName, "UInt", Flags)
-} ; https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfow
+    return SystemParametersInfo(0x14,, FileName, Flags)  ; SPI_SETDESKWALLPAPER.
+}
 
 
 
@@ -25,16 +30,15 @@ DesktopSetWallpaper(FileName, Flags := 0)
     Gets the desktop wallpaper for the current user.
     Return value:
         If the function succeeds, the return value is the path of the image file.
-        If the function fails, the return value is zero. To get extended error information, check A_LastError.
+        If the function fails, the return value is zero. A_LastError contains extended error information.
         If there is no desktop wallpaper, the returned string is empty.
 */
 DesktopGetWallpaper()
 {
-    ; SPI_GETDESKWALLPAPER = 0x0073.
-    local Buffer := BufferAlloc(2000)
-    local Result := DllCall("User32.dll\SystemParametersInfoW", "UInt", 0x0073, "UInt", Buffer.Size//2, "Ptr", Buffer, "UInt", 0)
-
-    return Result ? StrGet(Buffer,"UTF-16") : 0
+    local Buffer := BufferAlloc(2*32767)
+    return SystemParametersInfo(0x73, Buffer.Size//2, Buffer)  ; SPI_GETDESKWALLPAPER.
+         ? StrGet(Buffer)  ; Ok.
+         : 0               ; Error.
 } ; https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-systemparametersinfow
 
 
@@ -66,70 +70,73 @@ DesktopGetListView()
 
 
 /*
-    Restores or gets the position and text of all icons on the desktop.
+    Restores or retrieves the position and text of all icons on the desktop.
     Parameters:
         Data:
             Specify the returned object to restore the position of the icons.
             Omit this parameter to retrieve the information.
     Return value:
-        If it is to be restored, it returns the number of icons moved; Otherwise it returns an object.
-        The object contains the following format: {IconText: {X,Y}}.
-        If the function fails, the return value is zero. To get extended error information, check ErrorLevel.
-    Credits:
-        https://autohotkey.com/boards/viewtopic.php?f=6&t=3529
+        If it is to be restored, it returns the number of icons moved; Otherwise it returns an array.
+        The array contains the following format: [{Text,X,Y}].
+        If the function fails, the return value is zero.
+    Example:
+        MsgBox(Format("A_IsAdmin:`s{}.",A_IsAdmin?"TRUE":"FALSE"))
+        for Item in (DeskIcons := DesktopIcons())
+            IconList .= Format("{}`s({};{})`n", Item.Text, Item.X, Item.Y)
+        MsgBox(Format("DesktopIcons()`n{}{}{1}Try moving some icons.","------------------------------`n",IconList))
+        MsgBox(Format("Restored:`s{}",DesktopIcons(DeskIcons)))
 */
 DesktopIcons(Data := 0)
 {
     local
 
+    ; Retrieves the handle of the desktop's ListView control.
     if !(hListView := DesktopGetListView())
         return 0
 
     ; LVM_GETITEMCOUNT message.
-    ; https://docs.microsoft.com/en-us/windows/desktop/Controls/lvm-getitemcount.
-    ItemCount := SendMessage(0x1004,,, hListView)  ; Gets the number of icons on the desktop.
+    ; Retrieves the number of icons on the desktop.
+    ; Reference: (https://docs.microsoft.com/en-us/windows/win32/controls/lvm-getitemcount).
+    if !(ItemCount := SendMessage(0x1004,,,hListView))
+        return Data ? 0 : [ ]
 
-    ; Opens the process of «hListView» with PROCESS_VM_READ|PROCESS_VM_OPERATION|PROCESS_VM_WRITE.
-    ProcessId := WinGetPID("ahk_id" . hListView)
-    hProcess  := DllCall("Kernel32.dll\OpenProcess", "UInt", 0x00000038, "Int", FALSE, "UInt", ProcessId, "Ptr")
-    if !hProcess
-        return !(ErrorLevel := 1)
-
-    Buffer := BufferAlloc(2*32767)  ; LVITEMW.pszText: Buffer that receives the item text.
-    POINT  := BufferAlloc(8)        ; POINT structure: https://docs.microsoft.com/en-us/windows/desktop/api/windef/ns-windef-tagpoint.
+    ; Opens the process of «hListView» with read and write access rights.
+    if !(Process := ProcessOpen(WinGetPID(hListView),0x38))  ; PROCESS_VM_READ|PROCESS_VM_OPERATION|PROCESS_VM_WRITE.
+        return 0
 
     ; LVITEMW structure.
-    ; https://docs.microsoft.com/en-us/windows/desktop/api/commctrl/ns-commctrl-lvitemw.
-    Address := DllCall("Kernel32.dll\VirtualAllocEx", "Ptr", hProcess, "Ptr", 0, "Ptr", A_PtrSize==4?72:88, "UInt", 0x1000, "UInt", 0x0004, "Ptr")
-    ; LVITEMW.pszText: Buffer in «hProcess» that receives the item text.
-    pBuffer := DllCall("Kernel32.dll\VirtualAllocEx", "Ptr", hProcess, "Ptr", 0, "Ptr", Buffer.Size, "UInt", 0x1000, "UInt", 0x0004, "Ptr")
+    ; Allocates space in «Process» to store an LVITEMW structure.
+    ; Reference: (https://docs.microsoft.com/en-us/windows/win32/api/commctrl/ns-commctrl-lvitemw).
+    pLVITEM := VirtualAlloc(Process, 0, A_PtrSize==4?72:88)
+    ; Allocates space in «Process» to store the item's text.
+    pBuffer := VirtualAlloc(Process, 0, 520)  ; LVITEMW.pszText: Buffer in «Process» that receives the item text.
     ; Writes the address of the buffer and its size in the LVITEMW structure.
-    DllCall("Kernel32.dll\WriteProcessMemory", "Ptr", hProcess, "Ptr", Address+16+A_PtrSize, "PtrP", pBuffer, "Ptr", A_PtrSize, "Ptr", 0)   ; LVITEMW.pszText.
-    DllCall("Kernel32.dll\WriteProcessMemory", "Ptr", hProcess, "Ptr", Address+16+2*A_PtrSize, "IntP", Buffer.Size//2, "Ptr", 4, "Ptr", 0)  ; LVITEMW.cchTextMax.
-    
+    VirtualWriteValue(Process, pLVITEM+16+A_PtrSize  , "UPtr", pBuffer, A_PtrSize)  ; LVITEMW.pszText: pBuffer.
+    VirtualWriteValue(Process, pLVITEM+16+2*A_PtrSize, "UInt", 260, 4)              ; LVITEMW.cchTextMax: sizeof(pBuffer) in characters.
+
     ; ==============================================================================================================
     ; Save
     ; ==============================================================================================================
     if (!Data)
     {
-        Data := {}
+        Data := [ ]
         Loop (ItemCount)
         {
             ; LVM_GETITEMPOSITION message.
-            ; https://docs.microsoft.com/en-us/windows/desktop/controls/lvm-getitemposition.
-            SendMessage(0x1010, A_Index-1, Address, hListView)  ; Gets the position of the (A_Index-1)th icon.
-            ; Reads the position written in «Address» to the 'POINT' buffer of our script.
-            DllCall("Kernel32.dll\ReadProcessMemory", "Ptr", hProcess, "Ptr", Address, "Ptr", POINT, "Ptr", POINT.Size, "Ptr", 0)
+            ; Retrieves the position of the (A_Index-1)th icon.
+            ; Reference: (https://docs.microsoft.com/en-us/windows/win32/controls/lvm-getitemposition).
+            SendMessage(0x1010, A_Index-1, pLVITEM, hListView)  ; Writes a POINT structure in «pLVITEM».
+            ; Reads the position written in «pLVITEM» to a POINT buffer in our script.
+            POINT := VirtualRead(Process, pLVITEM,, 8)  ; POINT structure: Stores the x/y coordinates for an icon.
 
             ; LVM_GETITEMTEXT message.
-            ; https://docs.microsoft.com/en-us/windows/desktop/Controls/lvm-getitemtext.
-            SendMessage(0x1073, A_Index-1, Address, hListView)  ; Gets the text of the (A_Index-1)th icon.
-            ; Read the text written in «Address» (LVITEMW.pszText/pBuffer) to the 'Buffer' buffer of our script.
-            DllCall("Kernel32.dll\ReadProcessMemory", "Ptr", hProcess, "Ptr", pBuffer, "Ptr", Buffer, "Ptr", Buffer.Size, "Ptr", 0)
-            
-            ObjRawSet(Data, StrGet(Buffer,"UTF-16")
-                          , { X:NumGet(POINT,"Int") , Y:Numget(POINT,4,"Int") }
-                     )
+            ; Retrieves the text of the (A_Index-1)th icon.
+            ; Reference: (https://docs.microsoft.com/en-us/windows/win32/controls/lvm-getitemtext).
+            SendMessage(0x1073, A_Index-1, pLVITEM, hListView)  ; Writes a LVITEMW structure in «pLVITEM».
+            ; Read the text written in «pLVITEM.pszText» to a buffer in our script.
+            Text := VirtualReadString(Process, pBuffer, 260)  ; LVITEMW.pszText: Buffer that receives the item text.
+
+            Data.Push({Text:Text,X:NumGet(POINT,"Int"),Y:Numget(POINT,4,"Int")})
         }
     }
 
@@ -141,85 +148,48 @@ DesktopIcons(Data := 0)
         Count := 0
         Loop (ItemCount)
         {
-            ; LVM_GETITEMTEXT message.
-            ; https://docs.microsoft.com/en-us/windows/desktop/Controls/lvm-getitemtext.
-            SendMessage(0x1073, A_Index-1, Address, hListView)  ; Gets the text of the (A_Index-1)th icon.
-            ; Read the text written in «Address» (LVITEMW.pszText/pBuffer) to the 'Buffer' buffer of our script.
-            DllCall("Kernel32.dll\ReadProcessMemory", "Ptr", hProcess, "Ptr", pBuffer, "Ptr", Buffer, "Ptr", Buffer.Size, "Ptr", 0)
+            SendMessage(0x1073, A_Index-1, pLVITEM, hListView)  ; LVM_GETITEMTEXT message.
+            Buffer := VirtualRead(Process, pBuffer,, 520)
 
-            if ObjHasKey(Data,ItemText:=StrGet(Buffer,"UTF-16"))
-            {
-                ; LVM_SETITEMPOSITION message.
-                ; https://docs.microsoft.com/en-us/windows/desktop/Controls/lvm-setitemposition.
-                ; The LOWORD specifies the new x-position of the item's upper-left corner, in view coordinates.
-                ; The HIWORD specifies the new y-position of the item's upper-left corner, in view coordinates.
-                Count += SendMessage(0x100F, A_Index-1, Data[ItemText].X&0xFFFF|(Data[ItemText].Y&0xFFFF)<<16, hListView)
-            }
+            for Item in Data
+                if !StrCompare(Item.Text, StrGet(Buffer))
+                    ; LVM_SETITEMPOSITION message.
+                    ; The LOWORD specifies the new x-position of the item's upper-left corner, in view coordinates.
+                    ; The HIWORD specifies the new y-position of the item's upper-left corner, in view coordinates.
+                    ; Reference: (https://docs.microsoft.com/en-us/windows/win32/controls/lvm-setitemposition).
+                    Count += !!SendMessage(0x100F, A_Index-1, (Item.X&0xFFFF)|((Item.Y&0xFFFF)<<16), hListView)
         }
         Data := Count
     }
-    
-    ; ==============================================================================================================
-    DllCall("Kernel32.dll\VirtualFreeEx", "Ptr", hProcess, "Ptr", Address, "Ptr", 0, "UInt", 0x8000)
-    DllCall("Kernel32.dll\VirtualFreeEx", "Ptr", hProcess, "Ptr", pBuffer, "Ptr", 0, "UInt", 0x8000)
-    DllCall("Kernel32.dll\CloseHandle", "Ptr", hProcess)
+
+    ; Frees the allocated buffers in «Process».
+    VirtualFree(Process, pLVITEM)
+    VirtualFree(Process, pBuffer)
+    DllCall("Kernel32.dll\CloseHandle", "Ptr", Process)
 
     return Data
-}
+} ; https://autohotkey.com/boards/viewtopic.php?f=6&t=3529
 
-
-
-
-
-/*
-    Retrieves the position of a single icon on the desktop with the specified text.
-    Parameters:
-        ItemName:
-            The text of an icon (file name) on the desktop.
-    Return value:
-        If the function succeeds, the return value is non-zero.
-        If the function fails, the return value is zero. To get extended error information, check ErrorLevel.
-*/
 DesktopSetIconPos(ItemName, X, Y)
 {
-    local DeskIcons := DesktopIcons()
-
-    if !DeskIcons || !ObjHasKey(DeskIcons,ItemName)
-        return DeskIcons ? !(ErrorLevel := -1) : 0
-
-    ObjRawSet(DeskIcons, ItemName, {x:x, y:y})
-    return DesktopIcons(DeskIcons)
+    local
+    for Item in (DeskIcons := DesktopIcons())
+    {
+        if !StrCompare(Item.Text, ItemName)
+        {
+            DeskIcons[A_Index].X := X
+            DeskIcons[A_Index].Y := Y
+            return DesktopIcons(DeskIcons)
+        }
+    }
+    return 0
 }
 
-
-
-
-
-/*
-    Retrieves the position of a single icon on the desktop with the specified text.
-    Parameters:
-        ItemName:
-            The text of an icon (file name) on the desktop.
-    Return value:
-        If the function succeeds, the return value is an object with the keys 'X' and 'Y'.
-        If the function fails, the return value is zero. To get extended error information, check ErrorLevel.
-*/
 DesktopGetIconPos(ItemName)
 {
-    local DeskIcons := DesktopIcons()
-    return !DeskIcons ? 0
-         : !ObjHasKey(DeskIcons,ItemName) ? !(ErrorLevel := -1)
-         : DeskIcons[ItemName]
+    local
+    for Item in DesktopIcons()
+        if !StrCompare(Item.Text, ItemName)
+            return Item
+    return 0
 }
-
-
-
-
-
-/*
-MsgBox(Format("A_IsAdmin:`s{}.",A_IsAdmin?"TRUE":"FALSE"))
-For IconText, Point in Data := DesktopIcons()
-    IconList .= Format("{}`s({};{})`n", IconText, Point.X, Point.Y)
-MsgBox(Format("DesktopIcons()`n{}{}{1}Try moving some icons.","------------------------------`n",IconList))
-MsgBox(Format("Restored:`s{}",DesktopIcons(Data)))
-*/

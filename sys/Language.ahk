@@ -13,9 +13,10 @@
 LangGetName(LangID)
 {
     local Buffer := BufferAlloc(100)
-    local Length := DllCall("Version.dll\VerLanguageNameW", "UInt", LangID, "Ptr", Buffer, "UInt", Buffer.Size//2)
-    return Length ? StrGet(Buffer,Length,"UTF-16") : 0
-} ; https://docs.microsoft.com/en-us/windows/desktop/api/winver/nf-winver-verlanguagenamew
+    return DllCall("Version.dll\VerLanguageNameW", "UInt", LangID, "Ptr", Buffer, "UInt", Buffer.Size//2)
+         ? StrGet(Buffer)  ; Ok.
+         : 0               ; Error.
+} ; https://docs.microsoft.com/en-us/windows/win32/api/winver/nf-winver-verlanguagenamew
 
 
 
@@ -25,14 +26,14 @@ LangGetName(LangID)
     Retrieves the language identifier associated with a specified language description string.
     Parameters:
         LangName:
-            The language description string. 
+            The language description string.
     Return value:
         If the function succeeds, the return value is a language identifier.
         If the function fails, the return value is zero.
 */
 LangGetID(LangName)
 {
-    Loop (0x500A)
+    loop (0x500A)
         if (LangGetName(A_Index) = LangName)
             return A_Index
     return 0
@@ -59,11 +60,12 @@ LangGetID(LangName)
     Note:
         For custom locales, including those created by Microsoft, your applications should prefer locale names over locale identifiers.
 */
-LangGetLocaleName(LocaleID, Flags := 0)    ; LOCALE_ALLOW_NEUTRAL_NAMES = 0x08000000
+LangGetLocaleName(LocaleID, Flags := 0)
 {
     local Buffer := BufferAlloc(2*85)  ; LOCALE_NAME_MAX_LENGTH.
-    local Length := DllCall("Kernel32.dll\LCIDToLocaleName", "UInt", LocaleID, "Ptr", Buffer, "Int", Buffer.Size//2, "UInt", Flags)
-    return Length ? StrGet(Buffer,Length,"UTF-16") : 0
+    return DllCall("Kernel32.dll\LCIDToLocaleName", "UInt", LocaleID, "Ptr", Buffer, "Int", Buffer.Size//2, "UInt", Flags)
+         ? StrGet(Buffer)  ; Ok.
+         : 0               ; Error.
 } ; https://docs.microsoft.com/en-us/windows/desktop/api/winnls/nf-winnls-lcidtolocalename
 
 
@@ -71,13 +73,13 @@ LangGetLocaleName(LocaleID, Flags := 0)    ; LOCALE_ALLOW_NEUTRAL_NAMES = 0x0800
 
 
 /*
-    Converts a locale name to a locale identifier. 
+    Converts a locale name to a locale identifier.
     Parameters:
         LocaleName:
             A string representing a locale name, or one of the following predefined values.
             0                        LOCALE_NAME_USER_DEFAULT      Name of the current user locale, matching the preference set in the regional and language options portion of Control Panel. This locale can be different from the locale for the current user interface language.
             ""                       LOCALE_NAME_INVARIANT         Name of an invariant locale that provides stable locale and calendar data.
-            "!x-sys-default-locale"  LOCALE_NAME_SYSTEM_DEFAULT    Name of the current operating system locale. 
+            "!x-sys-default-locale"  LOCALE_NAME_SYSTEM_DEFAULT    Name of the current operating system locale.
         Flags:
             0x08000000  LOCALE_ALLOW_NEUTRAL_NAMES    Allow the return of a neutral locale identifier.
     Return value:
@@ -121,12 +123,3 @@ MAKELANGID(Primary, Sublanguage)
 {
     return (Sublanguage << 10) | Primary
 } ; https://docs.microsoft.com/es-es/windows/desktop/api/winnt/nf-winnt-makelangid
-
-
-
-
-
-/*
-LangName := LangGetName(LangID := "0x" . A_Language)
-MsgBox(Format("A_Language:`s{}`nLangName:`s{}`nLangID:`s0x{:04X}",LangID,LangName,LangGetID(LangName)))
-*/

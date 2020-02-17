@@ -7,19 +7,19 @@
             The version information strings to be recovered, separated by '|'.
             If only one string is specified (there's no '|'), the function returns a string.
     Return value:
-        If the function succeeds, the return value is an object with the properties requested; only those that exist are included.
+        If the function succeeds, the return value is a Map object with the requested properties; only those that exist are included.
         If the function fails, the return value is zero. To get extended error information, check A_LastError.
 */
 FileGetVerInfo(FileName, PropName)
 {
     local
 
-    if Arr := VerQueryValue(GetFileVersionInfo(FileName), "\VarFileInfo\Translation")  ; A little cryptic ...
-        Loop Parse, (Arr.LangCP:=VerEnumTranslation(Arr,-4))&&PropName, (VerInfo:={})&&"|"
+    if Arr := VerQueryValue(GetFileVersionInfo(FileName), "\VarFileInfo\Translation")
+        Loop Parse, (Arr.LangCP:=VerEnumTranslation(Arr,-4))&&PropName, (VerInfo:=Map())&&"|"
             if String := VerQueryValue(Arr.Buffer, Format("\StringFileInfo\{}\{}",Arr.LangCP,A_LoopField))
-                VerInfo[A_LoopField] := StrGet(String.Ptr, String.Size, "UTF-16")  ; ...
+                VerInfo[A_LoopField] := StrGet(String.Ptr, String.Size)
 
-    return Arr ? (InStr(PropName,"|")||!VerInfo.HasKey(PropName)?VerInfo:VerInfo[PropName]) : 0
+    return Arr ? (InStr(PropName,"|")||!VerInfo.Has(PropName)?VerInfo:VerInfo[PropName]) : 0
 }
 
 
@@ -84,7 +84,7 @@ VerQueryValue(Buffer, BlockName)
 {
     local
 
-    if (Buffer && (!IsObject(Buffer) || Buffer.Ptr))  ; Ensure that the address (pBlock) is not zero, otherwise VerQueryValueW can throw an exception.
+    if (Buffer && (!IsObject(Buffer) || Buffer.Ptr))  ; Ensure that the address (pBlock) is not zero, otherwise VerQueryValueW may throw an exception.
         ; VerQueryValueW function.
         ; https://docs.microsoft.com/es-es/windows/desktop/api/winver/nf-winver-verqueryvaluew.
         if DllCall("Version.dll\VerQueryValueW",   "Ptr", Buffer         ; pBlock.
@@ -100,7 +100,7 @@ VerQueryValue(Buffer, BlockName)
 
 
 
-VerEnumTranslation(Array, Size := 0)  ; Boring to explain xD.
+VerEnumTranslation(Array, Size := 0)
 {
     local Result := [], S := !Size && IsObject(Array) ? Array.Size : Abs(Size)
     if (Mod(S,4))
@@ -119,5 +119,5 @@ VerEnumTranslation(Array, Size := 0)  ; Boring to explain xD.
 /*
 FileVersion := FileGetVerInfo(A_ComSpec, "FileVersion")
 VerInfo     := FileGetVerInfo(A_ComSpec, "FileDescription|CompanyName")
-MsgBox(Format("FileName: {}`nFileVersion: {}`nFileDescription: {}`nCompanyName: {}",A_ComSpec,FileVersion,VerInfo.FileDescription,VerInfo.CompanyName))
+MsgBox(Format("FileName: {}`nFileVersion: {}`nFileDescription: {}`nCompanyName: {}",A_ComSpec,FileVersion,VerInfo["FileDescription"],VerInfo["CompanyName"]))
 */

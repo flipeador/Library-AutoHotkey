@@ -1,26 +1,54 @@
 ﻿; The Taskbar.
-; https://docs.microsoft.com/en-us/windows/win32/shell/taskbar#managing-taskbar-buttons.
+; https://docs.microsoft.com/en-us/windows/win32/shell/taskbar#managing-taskbar-buttons
 
 ; ITaskbarList4 interface.
-; https://docs.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_core-itaskbarlist4.
-global ITaskbarList4 := ComObjCreate("{56FDF344-FD6D-11d0-958A-006097C9A090}", "{C43DC798-95D1-4BEA-9030-BB99E2983A1A}")
-
-if A_LastError := TaskbarHrInit()
-    throw Exception(Format("0x{:08X} - ITaskbarList::HrInit Method",A_LastError), -1)
+; https://docs.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_core-itaskbarlist4
+global g_ITaskbarList4 := 0
+global g_ITaskbarList4_RefCount := 0
 
 
 
 
 
 /*
-    Initializes the taskbar list object. This method must be called before any other ITaskbarList methods can be called.
+    Initializes the taskbar list object.
     Return value:
-        If the function succeeds, the return value is zero. Otherwise, it returns an HRESULT error code.
+        If the function succeeds, the return value is the current reference count.
+        If the function fails, an exception is thrown describing the error.
+    Remarks:
+        This function must be called to start using some of these functions.
+        The TaskbarShutdown function must be called when you have finished using these functions.
 */
-TaskbarHrInit()
+TaskbarStartup()
 {
-    return DllCall(NumGet(NumGet(ITaskbarList4)+3*A_PtrSize), "Ptr", ITaskbarList4, "UInt")
+    if (g_ITaskbarList4_RefCount == 0)
+    {
+        g_ITaskbarList4 := ComObjCreate("{56FDF344-FD6D-11d0-958A-006097C9A090}", "{C43DC798-95D1-4BEA-9030-BB99E2983A1A}")
+        ComCall(3, g_ITaskbarList4)  ; ITaskbarList::HrInit method.
+    }
+    return ++g_ITaskbarList4_RefCount
 } ; https://docs.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist-hrinit
+
+
+
+
+
+/*
+    Cleans up resources allocated with a previous call to the TaskbarStartup function.
+    Return value:
+        Returns the current reference count.
+    Remarks:
+        Each call to the TaskbarStartup function should be paired with a call to the TaskbarShutdown function.
+*/
+TaskbarShutdown()
+{
+    if (g_ITaskbarList4_RefCount && !(--g_ITaskbarList4_RefCount))
+    {
+        ObjRelease(g_ITaskbarList4)
+        g_ITaskbarList4 := 0
+    }
+    return g_ITaskbarList4_RefCount
+}
 
 
 
@@ -32,16 +60,15 @@ TaskbarHrInit()
         hWnd:
             A handle to the window to be added to the taskbar.
     Return value:
-        If the function succeeds, the return value is zero. Otherwise, it returns an HRESULT error code.
+        If the function succeeds, the return value is zero.
+        If the function fails, an exception is thrown describing the error.
     Remarks:
         Any type of window can be added to the taskbar, but it is recommended that the window at least have the WS_CAPTION style.
         Any window added with this method must be removed with the TaskbarDeleteTab function when the added window is destroyed.
 */
 TaskbarAddTab(hWnd)
 {
-    return DllCall(NumGet(NumGet(ITaskbarList4)+4*A_PtrSize), "UPtr", ITaskbarList4
-                                                            , "UPtr", IsObject(hWnd) ? hWnd.Hwnd : hWnd
-                                                            , "UInt")
+    return ComCall(4, g_ITaskbarList4, "Ptr", hWnd)
 } ; https://docs.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist-addtab
 
 
@@ -54,13 +81,12 @@ TaskbarAddTab(hWnd)
         hWnd:
             A handle to the window to be deleted from the taskbar.
     Return value:
-        If the function succeeds, the return value is zero. Otherwise, it returns an HRESULT error code.
+        If the function succeeds, the return value is zero.
+        If the function fails, an exception is thrown describing the error.
 */
 TaskbarDeleteTab(hWnd)
 {
-    return DllCall(NumGet(NumGet(ITaskbarList4)+5*A_PtrSize), "UPtr", ITaskbarList4
-                                                            , "UPtr", IsObject(hWnd) ? hWnd.Hwnd : hWnd
-                                                            , "UInt")
+    return ComCall(5, g_ITaskbarList4, "Ptr", hWnd)
 } ; https://docs.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist-deletetab
 
 
@@ -73,13 +99,12 @@ TaskbarDeleteTab(hWnd)
         hWnd:
             A handle to the window on the taskbar to be displayed as active.
     Return value:
-        If the function succeeds, the return value is zero. Otherwise, it returns an HRESULT error code.
+        If the function succeeds, the return value is zero.
+        If the function fails, an exception is thrown describing the error.
 */
 TaskbarActivateTab(hWnd)
 {
-    return DllCall(NumGet(NumGet(ITaskbarList4)+6*A_PtrSize), "UPtr", ITaskbarList4
-                                                            , "UPtr", IsObject(hWnd) ? hWnd.Hwnd : hWnd
-                                                            , "UInt")
+    return ComCall(6, g_ITaskbarList4, "Ptr", hWnd)
 } ; https://docs.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist-activatetab
 
 
@@ -92,7 +117,8 @@ TaskbarActivateTab(hWnd)
         hWnd:
             A handle to the window to be marked as active.
     Return value:
-        If the function succeeds, the return value is zero. Otherwise, it returns an HRESULT error code.
+        If the function succeeds, the return value is zero.
+        If the function fails, an exception is thrown describing the error.
     Remarks:
         The TaskbarSetActiveAlt function marks the item associated with «hWnd» as the currently active item for the window's process without changing the pressed state of any item.
         Any user action that would activate a different tab in that process will activate the tab associated with hwnd instead.
@@ -101,9 +127,7 @@ TaskbarActivateTab(hWnd)
 */
 TaskbarSetActiveAlt(hWnd)
 {
-    return DllCall(NumGet(NumGet(ITaskbarList4)+7*A_PtrSize), "UPtr", ITaskbarList4
-                                                            , "UPtr", IsObject(hWnd) ? hWnd.Hwnd : hWnd
-                                                            , "UInt")
+    return ComCall(7, g_ITaskbarList4, "Ptr", hWnd)
 } ; https://docs.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist-setactivealt
 
 
@@ -120,17 +144,14 @@ TaskbarSetActiveAlt(hWnd)
         Total:
             An application-defined value that specifies the value «Completed» will have when the operation is complete.
     Return value:
-        If the function succeeds, the return value is zero. Otherwise, it returns an HRESULT error code.
+        If the function succeeds, the return value is zero.
+        If the function fails, an exception is thrown describing the error.
     Remarks:
-        When progress is complete, the application must call TaskbarSetProgressState with the TBPF_NOPROGRESS flag to dismiss the progress bar. 
+        When progress is complete, the application must call TaskbarSetProgressState with the TBPF_NOPROGRESS flag to dismiss the progress bar.
 */
 TaskbarSetProgressValue(hWnd, Completed, Total := 100)
 {
-    return DllCall(NumGet(NumGet(ITaskbarList4)+9*A_PtrSize),   "UPtr", ITaskbarList4
-                                                            ,   "UPtr", IsObject(hWnd) ? hWnd.Hwnd : hWnd
-                                                            , "UInt64", Completed
-                                                            , "UInt64", Total
-                                                            , "UInt")
+    return ComCall(9, g_ITaskbarList4, "Ptr", hWnd, "Int64", Completed, "Int64", Total)
 } ; https://docs.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist3-setprogressvalue
 
 
@@ -157,17 +178,15 @@ TaskbarSetProgressValue(hWnd, Completed, Total := 100)
                                      No error condition exists and nothing is preventing the progress from continuing. This is a determinate state.
                                      If the progress indicator is in the indeterminate state, it switches to a yellow determinate display of a generic percentage not indicative of actual progress.
     Return value:
-        If the function succeeds, the return value is zero. Otherwise, it returns an HRESULT error code.
+        If the function succeeds, the return value is zero.
+        If the function fails, an exception is thrown describing the error.
     Remarks:
         Progress bar information is not shown in high contrast color schemes to guarantee that no accessibility needs are compromised.
         Note that a call to TaskbarSetProgressValue will switch a progress indicator currently in an indeterminate mode to a normal display and clear the TBPF_INDETERMINATE flag.
 */
 TaskbarSetProgressState(hWnd, State)
 {
-    return DllCall(NumGet(NumGet(ITaskbarList4)+10*A_PtrSize), "UPtr", ITaskbarList4
-                                                             , "UPtr", IsObject(hWnd) ? hWnd.Hwnd : hWnd
-                                                             ,  "Int", State
-                                                             , "UInt")
+    return ComCall(10, g_ITaskbarList4, "Ptr", hWnd, "Int", State)
 } ; https://docs.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist3-setprogressstate
 
 
@@ -175,15 +194,28 @@ TaskbarSetProgressState(hWnd, State)
 
 
 /*
-    A combination of TaskbarSetProgressValue and TaskbarSetProgressState.
-    If «CompletedOrState» is a number, TaskbarSetProgressValue is called, otherwise TaskbarSetProgressState is called.
-    «CompletedOrState» must be: >=0 ^ <=Total, "NoProgress", "Indeterminate", "Normal", "Error" or "Paused".
+    A combination of TaskbarSetProgressValue and TaskbarSetProgressState functions.
+    Parameters:
+        hWnd:
+            See the TaskbarSetProgressValue and TaskbarSetProgressState functions.
+        Progress:
+            A string that specifies the state and/or a progress value.
+            For example: 15, "75", "Normal", "Paused 50", "Error 0".
+        Total:
+            See the TaskbarSetProgressValue function.
+            This parameter is only meaningful if «Progress» contains a number.
+    Return value:
+        The return value for this function is not used.
+        If the function fails, an exception is thrown describing the error.
 */
-TaskbarSetProgress(hWnd, CompletedOrState, Total := 100)
+TaskbarSetProgress(hWnd, Progress, Total := 100)
 {
-    static States := {NoProgress:0,Indeterminate:1,Normal:2,Error:4,Paused:8}
-    return CompletedOrState is "Number" ? TaskbarSetProgressValue(hWnd,CompletedOrState,Total)
-         : TaskbarSetProgressState(hWnd,States[CompletedOrState])
+    static States := {NoProgress:0, Indeterminate:1, Normal:2, Error:4, Paused:8}
+    local
+    if StrLen(Value:=RegExReplace(Progress,"[^\d]"))
+        TaskbarSetProgressValue(hWnd, Value, Total)
+    if StrLen(State:=RegExReplace(Progress,"i)[^a-z]"))
+        TaskbarSetProgressState(hWnd, States.%State%)
 } ; TaskbarSetProgressValue + TaskbarSetProgressState
 
 
@@ -206,32 +238,25 @@ TaskbarSetProgress(hWnd, CompletedOrState, Total := 100)
             • If the taskbar button represents a group of windows and a previous overlay is still available (received earlier than the current overlay, but not yet freed by a NULL value), then that previous overlay is displayed in place of the current overlay.
             --------------------------------------------
             It is the responsibility of the calling application to free the icon when it is no longer needed.
-            This can generally be done after you call TaskbarSetOverlayIcon because the taskbar makes and uses its own copy of the icon.  
+            This can generally be done after you call TaskbarSetOverlayIcon because the taskbar makes and uses its own copy of the icon.
         Description:
             A string that provides an alt text version of the information conveyed by the overlay, for accessibility purposes.
             This parameter can be a string or a pointer to a null-terminated string.
-        Flags:
-            1    Destroys the icon specified in «hIcon» and frees any memory the icon occupied.
-            2    Destroys the icon only if the function was successful.
     Return value:
-        If the function succeeds, the return value is zero. Otherwise, it returns an HRESULT error code.
+        If the function succeeds, the return value is zero.
+        If the function fails, an exception is thrown describing the error.
     Remarks:
         To display an overlay icon, the taskbar must be in the default large icon mode.
         If the taskbar is configured through Taskbar and Start Menu Properties to show small icons, overlays cannot be applied and calls to this method are ignored.
-            --------------------------------------------
+        -------------------------------------------------------------------------------------------
         If Windows Explorer shuts down unexpectedly, overlays are not restored when Windows Explorer is restored.
         The application should wait to receive the TaskbarButtonCreated message that indicates that Windows Explorer has restarted and the taskbar button has been re-created, and then call TaskbarSetOverlayIcon again to reapply the overlay.
 */
-TaskbarSetOverlayIcon(hWnd, hIcon, Description := 0, Flags := 0)
+TaskbarSetOverlayIcon(hWnd, hIcon, Description := 0)
 {
-    local Result := DllCall(NumGet(NumGet(ITaskbarList4)+18*A_PtrSize), "UPtr", ITaskbarList4
-                                                                      , "UPtr", IsObject(hWnd) ? hWnd.Hwnd : hWnd
-                                                                      , "UPtr", hIcon
-                                                                      , "UPtr", Type(Description) == "String" ? &Description : Description
-                                                                      , "UInt")
-    if (Flags & 1 || (Flags & 2 && !Result))
-        DllCall("User32.dll\DestroyIcon", "Ptr", hIcon)
-    return Result
+    return ComCall(18, g_ITaskbarList4, "UPtr", hWnd
+                                      , "UPtr", hIcon
+                                      , "UPtr", Type(Description)=="String" ? &Description : Description)
 } ; https://docs.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-itaskbarlist3-setoverlayicon
 
 
@@ -244,8 +269,8 @@ TaskbarSetOverlayIcon(hWnd, hIcon, Description := 0, Flags := 0)
 TaskbarGetTrayToolbar()
 {
     local
-    while hToolbar := ControlGetHwnd("ToolbarWindow32" . A_Index, "ahk_class Shell_TrayWnd")
-        if WinGetClass("ahk_id" . DllCall("User32.dll\GetParent","Ptr",hToolbar,"Ptr")) == "SysPager"
+    while (hToolbar := ControlGetHwnd("ToolbarWindow32" . A_Index, "ahk_class Shell_TrayWnd"))
+        if (WinGetClass(DllCall("User32.dll\GetParent","Ptr",hToolbar,"Ptr")) == "SysPager")
             break
     return [hToolbar,ControlGetHwnd("ToolbarWindow321","ahk_class NotifyIconOverflowWindow")]
 }

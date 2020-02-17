@@ -6,14 +6,19 @@
         CharMax:
             The maximum number of characters to be contained in the new string.
     Return value:
-        Returns the string that has been altered.
+        If the function succeeds, the return value is a string that has been altered.
+        If the function fails, the return value is zero.
 */
 PathCompact(Path, CharMax)
 {
-    local Buffer := BufferAlloc(2*CharMax+2)  ; Number of characters to be contained in the new string, including the terminating null character.
-    DllCall("Shlwapi.dll\PathCompactPathExW", "Ptr", Buffer, "Ptr", &Path, "UInt", CharMax+1, "UInt", 0)
-    return StrGet(Buffer, "UTF-16")
-} ; https://docs.microsoft.com/en-us/windows/desktop/api/shlwapi/nf-shlwapi-pathcompactpathexw
+    local Buffer := BufferAlloc(2*CharMax+2)
+    return DllCall("Shlwapi.dll\PathCompactPathExW",  "Ptr", Buffer
+                                                   , "UPtr", &Path
+                                                   , "UInt", Buffer.Size//2
+                                                   , "UInt", 0)
+         ? StrGet(Buffer)  ; Ok.
+         : 0               ; Error.
+} ; https://docs.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-pathcompactpathexw
 
 
 
@@ -29,10 +34,12 @@ PathCompact(Path, CharMax)
         Width:
             The width, in pixels, in which the string must fit.
     Return value:
-        Returns a string that contains the modified path.
+        If the function succeeds, the return value is a string that contains the modified path.
+        If the function fails, the return value is zero.
 */
 PathCompactDC(hDC, Path, Width)
 {
     return DllCall("Shlwapi.dll\PathCompactPathW", "Ptr", hDC, "Str", Path, "UInt", Width)
-         ? Path : ""
+         ? Path  ; Ok.
+         : 0     ; Error.
 } ; https://docs.microsoft.com/en-us/windows/desktop/api/shlwapi/nf-shlwapi-pathcompactpathw

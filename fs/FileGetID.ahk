@@ -18,16 +18,16 @@ FileGetID(Target)
         ; CreateFileW function.
         ; https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-createfilew.
         hFile := DllCall("Kernel32.dll\CreateFileW", "UPtr", &Target                           ; lpFileName.
-                                                 , "UInt", 0x80000000                        ; dwDesiredAccess: GENERIC_READ.
-                                                 , "UInt", 1                                 ; dwShareMode: FILE_SHARE_READ.
-                                                 , "UPtr", 0                                 ; lpSecurityAttributes.
-                                                 , "UInt", 3                                 ; dwCreationDisposition: OPEN_EXISTING.
-                                                 , "UInt", DirExist(Target) ? 0x2000000 : 0  ; dwFlagsAndAttributes: FILE_FLAG_BACKUP_SEMANTICS(0x2000000).
-                                                 , "UPtr", 0                                 ; hTemplateFile.
-                                                 , "UPtr")
+                                                   , "UInt", 0x80000000                        ; dwDesiredAccess: GENERIC_READ.
+                                                   , "UInt", 1                                 ; dwShareMode: FILE_SHARE_READ.
+                                                   , "UPtr", 0                                 ; lpSecurityAttributes.
+                                                   , "UInt", 3                                 ; dwCreationDisposition: OPEN_EXISTING.
+                                                   , "UInt", DirExist(Target) ? 0x2000000 : 0  ; dwFlagsAndAttributes: FILE_FLAG_BACKUP_SEMANTICS(0x2000000).
+                                                   , "UPtr", 0                                 ; hTemplateFile.
+                                                   , "UPtr")
     else
         hFile := IsObject(Target) ? Target.Handle : Target
-    
+
     if (hFile)
     {
         ; BY_HANDLE_FILE_INFORMATION structure.
@@ -39,7 +39,7 @@ FileGetID(Target)
         if DllCall("Kernel32.dll\GetFileInformationByHandle", "Ptr", hFile, "Ptr", BY_HANDLE_FILE_INFORMATION)
         {
             Result := Format("{:08X}-{:08X}{:08X}"  ; 09ABCDEF-09ABCDEF09ABCDEF.
-                           , Numget(BY_HANDLE_FILE_INFORMATION, 28, "UInt")   ; dwVolumeSerialNumber.                              
+                           , Numget(BY_HANDLE_FILE_INFORMATION, 28, "UInt")   ; dwVolumeSerialNumber.
                            , Numget(BY_HANDLE_FILE_INFORMATION, 44, "UInt")   ; nFileIndexHigh.
                            , Numget(BY_HANDLE_FILE_INFORMATION, 48, "UInt"))  ; nFileIndexLow.
         }
@@ -59,5 +59,7 @@ FileGetID(Target)
 FileGetID_CRC32(Target)
 {
     ; StrLen("B4D7AD2A-000100000000555B") = 25. The string is always 25 characters long.
-    return (Target:=FileGetID(Target)) ? DllCall("NtDll.dll\RtlComputeCrc32","UInt",0,"AStr",Target,"UInt",25,"UInt") : 0
+    return (Target := FileGetID(Target))
+         ? DllCall("NtDll.dll\RtlComputeCrc32","UInt",0,"AStr",Target,"UInt",25,"UInt")  ; Ok.
+         : 0                                                                             ; Error.
 } ; https://www.autohotkey.com/boards/viewtopic.php?f=6&t=34607#p242811

@@ -10,19 +10,15 @@ PathExpandVar(Path)
 {
     local
 
-    Needle := "%(\w*)%", Pos := 1
-    while Pos := RegExMatch(Path, Needle, Output, Pos)
+    Pos    := 1
+    Needle := "%(\w*)%"
+
+    while (Pos := RegExMatch(Path, Needle, R, Pos))
     {
-        if ((VarText:=EnvGet(Trim(Output[0],"%"))) !== "")
-            Path := RegExReplace(Path, Needle, VarText,, 1, Pos)
-        Pos += StrLen(VarText == "" ? Output[0] : VarText)
+        if (Len := StrLen(Text:=EnvGet(Trim(R[0],"%"))))
+            Path := RegExReplace(Path, Needle, Text,, 1, Pos)
+        Pos += Len || StrLen(R[0])
     }
 
     return Path
 }
-
-
-
-
-
-;MsgBox(PathExpandVar("%SystemRoot%"))

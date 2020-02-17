@@ -9,7 +9,7 @@
             0x8  FILE_NAME_OPENED         Return the opened file name (not normalized).
             -----------------------------
             This parameter can also include one of the following values.
-            0x0  VOLUME_NAME_DOS          Return the path with the drive letter. This is the default. 
+            0x0  VOLUME_NAME_DOS          Return the path with the drive letter. This is the default.
             0x1  VOLUME_NAME_GUID         Return the path with a volume GUID path instead of the drive name.
             0x2  VOLUME_NAME_NT           Return the path with the volume device path.
             0x4  VOLUME_NAME_NONE         Return the path with no drive information.
@@ -28,13 +28,15 @@ PathFromHandle(File, Flags := -1)
 
     ; Returns the length of the string received, in characters, not including the terminating null character.
     Length := DllCall("Kernel32.dll\GetFinalPathNameByHandleW", "UPtr", IsObject(File) ? File.Handle : File
-                                                              , "UPtr", Buffer.Ptr
-                                                              , "UInt", Buffer.Size
+                                                              ,  "Ptr", Buffer
+                                                              , "UInt", Buffer.Size//2
                                                               , "UInt", Flags > -1 ? Flags : 0
                                                               , "UInt")
 
-    return Flags > -1 ? StrGet(Buffer,Length,"UTF-16") : LTrim(StrGet(Buffer,Length,"UTF-16"),"\\?\")
-} ; https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew
+    return (Flags > -1)
+         ? StrGet(Buffer, Length)
+         : LTrim(StrGet(Buffer,Length), "\\?\")
+} ; https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew
 
 
 
