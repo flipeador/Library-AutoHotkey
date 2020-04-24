@@ -18,10 +18,33 @@ EnumWindows(ParentID := 0, Visible := FALSE)
 
     Local           List := []    ; este objeto almacenará la lista de identificadores de cada ventana
         , pEnumChildProc := CallbackCreate(EnumChildProc.Bind(List, Visible), "F&", 2)
-    
+
     Local R := DllCall("User32.dll\EnumChildWindows", "Ptr", ParentID, "UPtr", pEnumChildProc, "UPtr", 0)
 
     CallbackFree(pEnumChildProc)    ; liberamos la memoria reservada para la función EnumChildProc
 
     Return R ? List : FALSE
 } ; https://msdn.microsoft.com/en-us/library/windows/desktop/ms633494(v=vs.85).aspx
+
+
+
+
+
+; WIN_8+
+WinHwndList(Desktop := 0, Parent := 0, EnumChildren := FALSE, RemoveImmersive := FALSE, Thread := 0)
+{
+    local Buffer, Count, NtStatus := DllCall("win32u\NtUserBuildHwndList"
+        , "Ptr"  , Desktop                                 ; hDesktop
+        , "Ptr"  , Parent                                  ; hWndParent
+        , "Int"  , !!EnumChildren                          ; bEnumChildren
+        , "Int"  , !!RemoveImmersive                       ; bRemoveImmersive
+        , "UInt" , Thread                                  ; dwThreadId
+        , "UInt" , 32767                                   ; uMax
+        , "Ptr"  , Buffer := BufferAlloc(32767*A_PtrSize)  ; pHwndList
+        , "UIntP", Count  := 0                             ; pCount (out)
+        , "UInt")  ; NTSTATUS value (return) | NOERROR(0x00000000) |⠀STATUS_BUFFER_TOO_SMALL(0xC0000023)
+    local HwndList := []
+    loop Count := (NtStatus == 0x00000000) && Count
+        HwndList.Push(NumGet(Buffer,(A_Index-1)*A_PtrSize,"UPtr"))
+    return Count && HwndList  ; 0(FAILURE) |⠀[](SUCCESS)
+}
